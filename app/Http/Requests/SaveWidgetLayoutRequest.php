@@ -14,12 +14,12 @@ class SaveWidgetLayoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'layout'         => 'required|array',
-            'layout.*.id'    => 'required|integer|exists:dashboard_widgets,id',
-            'layout.*.grid_x' => 'required|integer|min:0',
-            'layout.*.grid_y' => 'required|integer|min:0',
-            'layout.*.grid_w' => 'required|integer|min:1',
-            'layout.*.grid_h' => 'required|integer|min:1',
+            'layout'     => 'required|array',
+            'layout.*.i' => 'required|string',
+            'layout.*.x' => 'required|integer|min:0',
+            'layout.*.y' => 'required|integer|min:0',
+            'layout.*.w' => 'required|integer|min:1',
+            'layout.*.h' => 'required|integer|min:1',
         ];
     }
 }

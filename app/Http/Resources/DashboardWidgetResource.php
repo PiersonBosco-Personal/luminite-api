@@ -12,8 +12,9 @@ class DashboardWidgetResource extends JsonResource
         return [
             'id'         => $this->id,
             'project_id' => $this->project_id,
-            'type'       => $this->type,
-            'config'     => $this->config,
+            'user_id'    => $this->user_id,
+            'widget_id'  => $this->widget_id,
+            'widget'     => new WidgetResource($this->whenLoaded('widget')),
             'grid_x'     => $this->grid_x,
             'grid_y'     => $this->grid_y,
             'grid_w'     => $this->grid_w,
