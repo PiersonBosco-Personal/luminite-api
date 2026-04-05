@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TaskSectionController;
 use App\Http\Controllers\Api\V1\TechStackController;
+use App\Http\Controllers\Api\V1\WidgetController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -21,6 +22,12 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/user',    [AuthController::class, 'user']);
+
+        // Widget catalog (all active widget types)
+        Route::get('/widgets', [WidgetController::class, 'index']);
+
+        // Dashboard widget delete (not project-scoped — frontend calls without project context)
+        Route::delete('/dashboard-widgets/{dashboardWidget}', [DashboardController::class, 'destroy']);
 
         // Projects
         Route::get('/projects',       [ProjectController::class, 'index']);
@@ -75,17 +82,14 @@ Route::prefix('v1')->group(function () {
             Route::post('/projects/{project}/labels/{label}/notes/attach',        [LabelController::class, 'attachToNote']);
             Route::delete('/projects/{project}/labels/{label}/notes/detach',      [LabelController::class, 'detachFromNote']);
 
-            // Dashboard Widgets
-            Route::get('/projects/{project}/widgets',                 [DashboardController::class, 'index']);
-            Route::post('/projects/{project}/widgets',                [DashboardController::class, 'store']);
-            Route::put('/projects/{project}/widgets/{widget}',        [DashboardController::class, 'update']);
-            Route::delete('/projects/{project}/widgets/{widget}',     [DashboardController::class, 'destroy']);
-            Route::post('/projects/{project}/widgets/layout',         [DashboardController::class, 'saveLayout']);
+            // Dashboard widgets (per-user layout for this project)
+            Route::get('/projects/{project}/dashboard-widgets',         [DashboardController::class, 'index']);
+            Route::post('/projects/{project}/dashboard-widgets',        [DashboardController::class, 'store']);
+            Route::post('/projects/{project}/dashboard-widgets/sync',   [DashboardController::class, 'sync']);
 
             // AI (stubs — Phase 4)
             Route::get('/projects/{project}/ai/conversations',    [AiController::class, 'index']);
             Route::post('/projects/{project}/ai/conversations',   [AiController::class, 'store']);
         });
     });
-
 });

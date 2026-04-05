@@ -8,7 +8,8 @@ class DashboardWidget extends Model
 {
     protected $fillable = [
         'project_id',
-        'type',
+        'user_id',
+        'widget_id',
         'config',
         'grid_x',
         'grid_y',
@@ -26,5 +27,15 @@ class DashboardWidget extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function widget()
+    {
+        return $this->belongsTo(Widget::class);
     }
 }

@@ -10,6 +10,7 @@ use App\Models\Task;
 use App\Models\TaskSection;
 use App\Models\TechStack;
 use App\Models\User;
+use App\Models\Widget;
 use Illuminate\Database\Seeder;
 
 class ProjectSeeder extends Seeder
@@ -121,11 +122,17 @@ class ProjectSeeder extends Seeder
             'is_pinned'  => false,
         ]);
 
-        DashboardWidget::insert([
-            ['project_id' => $webApp->id, 'type' => 'task_summary',    'config' => json_encode(['show_blocked' => true]), 'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 2, 'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $webApp->id, 'type' => 'recent_notes',    'config' => json_encode(['limit' => 5]),            'grid_x' => 4, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 2, 'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $webApp->id, 'type' => 'member_activity', 'config' => null,                                  'grid_x' => 8, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 2, 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        $wTasksBoard   = Widget::where('slug', 'tasks_board')->first();
+        $wNotesList    = Widget::where('slug', 'notes_list')->first();
+        $wActivity     = Widget::where('slug', 'activity_feed')->first();
+
+        if ($wTasksBoard && $wNotesList && $wActivity) {
+            DashboardWidget::insert([
+                ['project_id' => $webApp->id, 'user_id' => $owner->id, 'widget_id' => $wTasksBoard->id, 'config' => null, 'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 8, 'grid_h' => 6, 'created_at' => now(), 'updated_at' => now()],
+                ['project_id' => $webApp->id, 'user_id' => $owner->id, 'widget_id' => $wNotesList->id,  'config' => null, 'grid_x' => 8, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 6, 'created_at' => now(), 'updated_at' => now()],
+                ['project_id' => $webApp->id, 'user_id' => $owner->id, 'widget_id' => $wActivity->id,   'config' => null, 'grid_x' => 0, 'grid_y' => 6, 'grid_w' => 4, 'grid_h' => 5, 'created_at' => now(), 'updated_at' => now()],
+            ]);
+        }
 
         // --- Project 2: API ---
         $api = Project::create([
