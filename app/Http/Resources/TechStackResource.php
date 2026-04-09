@@ -12,8 +12,10 @@ class TechStackResource extends JsonResource
         return [
             'id'         => $this->id,
             'project_id' => $this->project_id,
+            'parent_id'  => $this->parent_id,
             'name'       => $this->name,
-            'app_label'  => $this->app_label,
+            'version'    => $this->version,
+            'children'   => TechStackResource::collection($this->whenLoaded('children')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

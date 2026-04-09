@@ -15,7 +15,8 @@ class StoreTechStackRequest extends FormRequest
     {
         return [
             'name'      => 'required|string|max:255',
-            'app_label' => 'required|in:frontend,backend,mobile,other',
+            'version'   => 'nullable|string|max:50',
+            'parent_id' => 'nullable|integer|exists:tech_stacks,id',
         ];
     }
 }

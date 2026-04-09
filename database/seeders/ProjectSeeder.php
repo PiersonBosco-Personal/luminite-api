@@ -35,11 +35,11 @@ class ProjectSeeder extends Seeder
         $webApp->members()->attach($second->id, ['role' => 'member']);
 
         TechStack::insert([
-            ['project_id' => $webApp->id, 'name' => 'React',      'app_label' => 'frontend', 'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $webApp->id, 'name' => 'TypeScript',  'app_label' => 'frontend', 'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $webApp->id, 'name' => 'Tailwind CSS','app_label' => 'frontend', 'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $webApp->id, 'name' => 'Laravel',     'app_label' => 'backend',  'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $webApp->id, 'name' => 'MySQL',       'app_label' => 'backend',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'React',       'version' => '18.3', 'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'TypeScript',  'version' => '5.x',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'Tailwind CSS','version' => '4.0',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'Laravel',     'version' => '11',   'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'MySQL',       'version' => '8.0',  'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $bugLabel      = Label::create(['project_id' => $webApp->id, 'name' => 'Bug',      'color' => '#ef4444']);
@@ -144,9 +144,9 @@ class ProjectSeeder extends Seeder
         $api->members()->attach($owner->id, ['role' => 'owner']);
 
         TechStack::insert([
-            ['project_id' => $api->id, 'name' => 'Laravel 11', 'app_label' => 'backend', 'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $api->id, 'name' => 'MySQL',       'app_label' => 'backend', 'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $api->id, 'name' => 'Redis',        'app_label' => 'backend', 'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $api->id, 'parent_id' => null, 'name' => 'Laravel 11', 'version' => '11',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $api->id, 'parent_id' => null, 'name' => 'MySQL',      'version' => '8.0', 'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $api->id, 'parent_id' => null, 'name' => 'Redis',      'version' => null,  'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $apiBacklog = TaskSection::create(['project_id' => $api->id, 'name' => 'Backlog',     'position' => 0]);

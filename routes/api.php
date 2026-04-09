@@ -45,9 +45,10 @@ Route::prefix('v1')->group(function () {
             Route::delete('/projects/{project}/members/{user}',    [ProjectController::class, 'removeMember']);
 
             // Tech Stack
-            Route::get('/projects/{project}/tech-stack',                  [TechStackController::class, 'index']);
-            Route::post('/projects/{project}/tech-stack',                 [TechStackController::class, 'store']);
-            Route::delete('/projects/{project}/tech-stack/{techStack}',   [TechStackController::class, 'destroy']);
+            Route::get('/projects/{project}/tech-stack',                   [TechStackController::class, 'index']);
+            Route::post('/projects/{project}/tech-stack',                  [TechStackController::class, 'store']);
+            Route::patch('/projects/{project}/tech-stack/{techStack}',     [TechStackController::class, 'update']);
+            Route::delete('/projects/{project}/tech-stack/{techStack}',    [TechStackController::class, 'destroy']);
 
             // Task Sections
             Route::get('/projects/{project}/sections',                       [TaskSectionController::class, 'index']);
