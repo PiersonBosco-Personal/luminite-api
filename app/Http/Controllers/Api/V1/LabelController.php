@@ -9,6 +9,7 @@ use App\Http\Resources\LabelResource;
 use App\Models\Label;
 use App\Models\Project;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LabelController extends Controller
 {
@@ -46,7 +47,13 @@ class LabelController extends Controller
     {
         abort_if($label->project_id !== $project->id, 404);
 
-        $request->validate(['task_id' => 'required|integer|exists:tasks,id']);
+        $request->validate([
+            'task_id' => [
+                'required',
+                'integer',
+                Rule::exists('tasks', 'id')->where('project_id', $project->id),
+            ],
+        ]);
 
         $task = $project->tasks()->findOrFail($request->task_id);
         $task->labels()->syncWithoutDetaching([$label->id]);
