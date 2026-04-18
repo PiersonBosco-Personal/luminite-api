@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\LabelController;
 use App\Http\Controllers\Api\V1\NoteController;
+use App\Http\Controllers\Api\V1\NoteFolderController;
 use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TaskSectionController;
@@ -64,6 +65,12 @@ Route::prefix('v1')->group(function () {
             Route::put('/projects/{project}/tasks/{task}',       [TaskController::class, 'update']);
             Route::delete('/projects/{project}/tasks/{task}',    [TaskController::class, 'destroy']);
             Route::post('/projects/{project}/tasks/reorder',     [TaskController::class, 'reorder']);
+
+            // Note Folders
+            Route::get('/projects/{project}/note-folders',                          [NoteFolderController::class, 'index']);
+            Route::post('/projects/{project}/note-folders',                         [NoteFolderController::class, 'store']);
+            Route::put('/projects/{project}/note-folders/{noteFolder}',             [NoteFolderController::class, 'update']);
+            Route::delete('/projects/{project}/note-folders/{noteFolder}',          [NoteFolderController::class, 'destroy']);
 
             // Notes
             Route::get('/projects/{project}/notes',                      [NoteController::class, 'index']);

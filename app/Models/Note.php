@@ -11,11 +11,13 @@ class Note extends Model
 
     protected $fillable = [
         'project_id',
+        'folder_id',
         'task_id',
         'created_by',
         'title',
         'content',
         'is_pinned',
+        'position',
     ];
 
     protected function casts(): array
@@ -28,6 +30,11 @@ class Note extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function folder()
+    {
+        return $this->belongsTo(NoteFolder::class, 'folder_id');
     }
 
     public function task()

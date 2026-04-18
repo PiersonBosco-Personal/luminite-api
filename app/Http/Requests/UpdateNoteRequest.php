@@ -14,10 +14,12 @@ class UpdateNoteRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'folder_id' => 'sometimes|nullable|integer|exists:note_folders,id',
             'task_id'   => 'sometimes|nullable|integer|exists:tasks,id',
             'title'     => 'sometimes|string|max:255',
             'content'   => 'sometimes|nullable',
             'is_pinned' => 'sometimes|boolean',
+            'position'  => 'sometimes|numeric',
         ];
     }
 }

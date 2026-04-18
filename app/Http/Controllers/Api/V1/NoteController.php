@@ -12,22 +12,38 @@ use Illuminate\Http\Request;
 
 class NoteController extends Controller
 {
-    public function index(Project $project)
+    public function index(Request $request, Project $project)
     {
-        $notes = $project->notes()
-            ->with('author', 'labels')
-            ->orderByDesc('is_pinned')
-            ->orderByDesc('updated_at')
-            ->get();
+        $query = $project->notes()->with('author', 'labels');
+
+        if ($request->has('folder_id')) {
+            $folderId = $request->query('folder_id');
+            $folderId === 'null' || $folderId === null
+                ? $query->whereNull('folder_id')
+                : $query->where('folder_id', (int) $folderId);
+        }
+
+        $notes = $query->orderBy('position')->orderBy('id')->get();
 
         return NoteResource::collection($notes);
     }
 
     public function store(StoreNoteRequest $request, Project $project)
     {
+        $validated = $request->validated();
+        $folderId  = $validated['folder_id'] ?? null;
+
+        $maxPosition = $project->notes()
+            ->when(
+                $folderId !== null,
+                fn ($q) => $q->where('folder_id', $folderId),
+                fn ($q) => $q->whereNull('folder_id')
+            )
+            ->max('position') ?? -1;
+
         $note = $project->notes()->create(array_merge(
-            $request->validated(),
-            ['created_by' => $request->user()->id]
+            $validated,
+            ['created_by' => $request->user()->id, 'position' => $maxPosition + 1]
         ));
 
         return new NoteResource($note->load('author', 'labels'));

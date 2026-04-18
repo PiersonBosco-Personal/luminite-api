@@ -45,6 +45,11 @@ class Project extends Model
         return $this->hasMany(Note::class);
     }
 
+    public function noteFolders()
+    {
+        return $this->hasMany(NoteFolder::class);
+    }
+
     public function labels()
     {
         return $this->hasMany(Label::class);
