@@ -18,8 +18,8 @@ class WidgetSeeder extends Seeder
                 'icon'        => 'kanban',
                 'default_w'   => 8,
                 'default_h'   => 6,
-                'min_w'       => 4,
-                'min_h'       => 4,
+                'min_w'       => 8,
+                'min_h'       => 6,
             ],
             [
                 'slug'        => 'tasks_list',
