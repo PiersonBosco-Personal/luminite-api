@@ -15,6 +15,12 @@ class TaskSectionController extends Controller
     public function index(Project $project)
     {
         $sections = $project->taskSections()
+            ->with(['tasks' => fn($q) => $q
+                ->with('assignee', 'labels')
+                ->withCount('subtasks')
+                ->whereNull('parent_task_id')
+                ->orderBy('position')
+            ])
             ->orderBy('position')
             ->get();
 
