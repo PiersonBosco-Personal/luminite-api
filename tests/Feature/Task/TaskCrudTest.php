@@ -84,6 +84,33 @@ it('returns 422 when section_id is missing on store', function () {
         ->assertStatus(422);
 });
 
+it('can assign a task to a user on create', function () {
+    $user     = actingAsUser();
+    $project  = createProject($user);
+    $section  = TaskSection::factory()->create(['project_id' => $project->id]);
+    $assignee = User::factory()->create();
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/tasks", [
+        'title'       => 'Assigned Task',
+        'section_id'  => $section->id,
+        'assigned_to' => $assignee->id,
+    ])->assertStatus(201);
+
+    expect($response->json('data.assignee.id'))->toBe($assignee->id);
+});
+
+it('returns 422 when assigned_to is not a valid user id on store', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $section = TaskSection::factory()->create(['project_id' => $project->id]);
+
+    $this->postJson("/api/v1/projects/{$project->id}/tasks", [
+        'title'       => 'Task',
+        'section_id'  => $section->id,
+        'assigned_to' => 999999,
+    ])->assertStatus(422);
+});
+
 it('returns 422 when status enum is invalid on store', function () {
     $user    = actingAsUser();
     $project = createProject($user);
@@ -137,6 +164,38 @@ it('member can update a task', function () {
         'title'  => 'Updated',
         'status' => 'done',
     ])->assertStatus(200)->assertJsonFragment(['title' => 'Updated']);
+});
+
+it('can update assigned_to on a task', function () {
+    $user     = actingAsUser();
+    $project  = createProject($user);
+    $section  = TaskSection::factory()->create(['project_id' => $project->id]);
+    $task     = Task::factory()->create(['project_id' => $project->id, 'section_id' => $section->id]);
+    $assignee = User::factory()->create();
+
+    $response = $this->putJson("/api/v1/projects/{$project->id}/tasks/{$task->id}", [
+        'assigned_to' => $assignee->id,
+    ])->assertStatus(200);
+
+    expect($response->json('data.assignee.id'))->toBe($assignee->id);
+});
+
+it('can unassign a task by setting assigned_to to null', function () {
+    $user     = actingAsUser();
+    $project  = createProject($user);
+    $section  = TaskSection::factory()->create(['project_id' => $project->id]);
+    $assignee = User::factory()->create();
+    $task     = Task::factory()->create([
+        'project_id'  => $project->id,
+        'section_id'  => $section->id,
+        'assigned_to' => $assignee->id,
+    ]);
+
+    $this->putJson("/api/v1/projects/{$project->id}/tasks/{$task->id}", [
+        'assigned_to' => null,
+    ])->assertStatus(200);
+
+    expect($task->fresh()->assigned_to)->toBeNull();
 });
 
 it('returns 404 when updating a task from another project', function () {

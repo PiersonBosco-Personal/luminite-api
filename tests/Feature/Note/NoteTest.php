@@ -7,19 +7,34 @@ use App\Models\User;
 
 // --- Index ---
 
-it('returns pinned notes first then by updated_at', function () {
+it('returns notes ordered by position then id', function () {
     $user    = actingAsUser();
     $project = createProject($user);
 
-    $unpinned = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'is_pinned' => false]);
-    $pinned   = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'is_pinned' => true]);
+    $second = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'position' => 1]);
+    $first  = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'position' => 0]);
 
     $data = $this->getJson("/api/v1/projects/{$project->id}/notes")
                  ->assertStatus(200)
                  ->json('data');
 
-    expect($data[0]['id'])->toBe($pinned->id)
-        ->and($data[1]['id'])->toBe($unpinned->id);
+    expect($data[0]['id'])->toBe($first->id)
+        ->and($data[1]['id'])->toBe($second->id);
+});
+
+it('returns notes with same position ordered by id ascending', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+
+    $note1 = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'position' => 0]);
+    $note2 = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'position' => 0]);
+
+    $data = $this->getJson("/api/v1/projects/{$project->id}/notes")
+                 ->assertStatus(200)
+                 ->json('data');
+
+    expect($data[0]['id'])->toBe($note1->id)
+        ->and($data[1]['id'])->toBe($note2->id);
 });
 
 it('returns 403 on index when not a member', function () {
