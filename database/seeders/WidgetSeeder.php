@@ -120,6 +120,17 @@ class WidgetSeeder extends Seeder
                 'min_w'       => 3,
                 'min_h'       => 3,
             ],
+            [
+                'slug'        => 'daily_notes',
+                'name'        => 'Daily Notes',
+                'category'    => 'productivity',
+                'description' => 'Auto-creates a dated note for each day, stored in the Daily Notes folder.',
+                'icon'        => 'notebook-pen',
+                'default_w'   => 6,
+                'default_h'   => 6,
+                'min_w'       => 4,
+                'min_h'       => 4,
+            ],
         ];
 
         foreach ($widgets as $widget) {
