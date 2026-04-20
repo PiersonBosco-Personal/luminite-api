@@ -42,9 +42,14 @@ class ProjectSeeder extends Seeder
             ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'MySQL',       'version' => '8.0',  'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        $bugLabel      = Label::create(['project_id' => $webApp->id, 'name' => 'Bug',      'color' => '#ef4444']);
-        $featureLabel  = Label::create(['project_id' => $webApp->id, 'name' => 'Feature',  'color' => '#6366f1']);
-        $reviewLabel   = Label::create(['project_id' => $webApp->id, 'name' => 'Review',   'color' => '#f59e0b']);
+        $bugLabel       = Label::create(['project_id' => $webApp->id, 'name' => 'Bug',         'color' => '#ef4444']);
+        $featureLabel   = Label::create(['project_id' => $webApp->id, 'name' => 'Feature',     'color' => '#6366f1']);
+        $reviewLabel    = Label::create(['project_id' => $webApp->id, 'name' => 'Review',      'color' => '#f59e0b']);
+        $improvLabel    = Label::create(['project_id' => $webApp->id, 'name' => 'Improvement', 'color' => '#22c55e']);
+        $perfLabel      = Label::create(['project_id' => $webApp->id, 'name' => 'Performance', 'color' => '#06b6d4']);
+        $secLabel       = Label::create(['project_id' => $webApp->id, 'name' => 'Security',    'color' => '#f97316']);
+        $docsLabel      = Label::create(['project_id' => $webApp->id, 'name' => 'Docs',        'color' => '#a855f7']);
+        $techDebtLabel  = Label::create(['project_id' => $webApp->id, 'name' => 'Tech Debt',   'color' => '#64748b']);
 
         $backlog = TaskSection::create(['project_id' => $webApp->id, 'name' => 'Backlog',     'position' => 0]);
         $inProg  = TaskSection::create(['project_id' => $webApp->id, 'name' => 'In Progress', 'position' => 1]);
@@ -152,7 +157,11 @@ class ProjectSeeder extends Seeder
         $apiBacklog = TaskSection::create(['project_id' => $api->id, 'name' => 'Backlog',     'position' => 0]);
         $apiDone    = TaskSection::create(['project_id' => $api->id, 'name' => 'Done',        'position' => 1]);
 
-        $apiLabel = Label::create(['project_id' => $api->id, 'name' => 'API', 'color' => '#10b981']);
+        $apiLabel      = Label::create(['project_id' => $api->id, 'name' => 'API',         'color' => '#10b981']);
+        $apiBugLabel   = Label::create(['project_id' => $api->id, 'name' => 'Bug',         'color' => '#ef4444']);
+        $apiSecLabel   = Label::create(['project_id' => $api->id, 'name' => 'Security',    'color' => '#f97316']);
+        $apiAuthLabel  = Label::create(['project_id' => $api->id, 'name' => 'Auth',        'color' => '#6366f1']);
+        $apiPerfLabel  = Label::create(['project_id' => $api->id, 'name' => 'Performance', 'color' => '#06b6d4']);
 
         $at1 = Task::create([
             'project_id' => $api->id,
