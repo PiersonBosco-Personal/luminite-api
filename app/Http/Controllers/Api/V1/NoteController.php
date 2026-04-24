@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\NoteCreated;
+use App\Events\NoteDeleted;
+use App\Events\NoteUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreNoteRequest;
 use App\Http\Requests\UpdateNoteRequest;
@@ -46,7 +49,11 @@ class NoteController extends Controller
             ['created_by' => $request->user()->id, 'position' => $maxPosition + 1]
         ));
 
-        return new NoteResource($note->load('author', 'labels'));
+        $note->load('author', 'labels');
+
+        broadcast(new NoteCreated($note, $project->id))->toOthers();
+
+        return new NoteResource($note);
     }
 
     public function show(Project $project, Note $note)
@@ -61,15 +68,21 @@ class NoteController extends Controller
         abort_if($note->project_id !== $project->id, 404);
 
         $note->update($request->validated());
+        $note->load('author', 'labels');
 
-        return new NoteResource($note->load('author', 'labels'));
+        broadcast(new NoteUpdated($note, $project->id))->toOthers();
+
+        return new NoteResource($note);
     }
 
     public function destroy(Project $project, Note $note)
     {
         abort_if($note->project_id !== $project->id, 404);
 
+        $noteId = $note->id;
         $note->delete();
+
+        broadcast(new NoteDeleted($noteId, $project->id))->toOthers();
 
         return response()->json(['message' => 'Note deleted.']);
     }
@@ -79,7 +92,10 @@ class NoteController extends Controller
         abort_if($note->project_id !== $project->id, 404);
 
         $note->update(['is_pinned' => ! $note->is_pinned]);
+        $note->load('author', 'labels');
 
-        return new NoteResource($note->load('author', 'labels'));
+        broadcast(new NoteUpdated($note, $project->id))->toOthers();
+
+        return new NoteResource($note);
     }
 }

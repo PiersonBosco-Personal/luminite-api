@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\NoteFolderCreated;
+use App\Events\NoteFolderDeleted;
+use App\Events\NoteFolderUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\NoteFolder;
 use App\Models\Project;
@@ -32,6 +35,8 @@ class NoteFolderController extends Controller
             'position'   => $position,
         ]);
 
+        broadcast(new NoteFolderCreated($folder, $project->id))->toOthers();
+
         return response()->json(['data' => $folder], 201);
     }
 
@@ -46,6 +51,8 @@ class NoteFolderController extends Controller
 
         $noteFolder->update($validated);
 
+        broadcast(new NoteFolderUpdated($noteFolder, $project->id))->toOthers();
+
         return response()->json(['data' => $noteFolder]);
     }
 
@@ -53,7 +60,10 @@ class NoteFolderController extends Controller
     {
         abort_if($noteFolder->project_id !== $project->id, 404);
 
+        $folderId = $noteFolder->id;
         $noteFolder->delete();
+
+        broadcast(new NoteFolderDeleted($folderId, $project->id))->toOthers();
 
         return response()->json(['message' => 'Folder deleted.']);
     }

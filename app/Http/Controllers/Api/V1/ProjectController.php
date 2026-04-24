@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\ProjectUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddProjectMemberRequest;
 use App\Http\Requests\StoreProjectRequest;
@@ -52,8 +53,11 @@ class ProjectController extends Controller
         $this->authorize('update', $project);
 
         $project->update($request->validated());
+        $project->load('owner');
 
-        return new ProjectResource($project->load('owner'));
+        broadcast(new ProjectUpdated($project, $project->id))->toOthers();
+
+        return new ProjectResource($project);
     }
 
     public function destroy(Request $request, Project $project)

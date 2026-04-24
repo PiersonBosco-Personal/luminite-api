@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\LabelCreated;
+use App\Events\LabelDeleted;
+use App\Events\LabelUpdated;
+use App\Events\NoteUpdated;
+use App\Events\TaskUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreLabelRequest;
 use App\Http\Requests\UpdateLabelRequest;
@@ -22,6 +27,8 @@ class LabelController extends Controller
     {
         $label = $project->labels()->create($request->validated());
 
+        broadcast(new LabelCreated($label, $project->id))->toOthers();
+
         return new LabelResource($label);
     }
 
@@ -31,6 +38,8 @@ class LabelController extends Controller
 
         $label->update($request->validated());
 
+        broadcast(new LabelUpdated($label, $project->id))->toOthers();
+
         return new LabelResource($label);
     }
 
@@ -38,7 +47,10 @@ class LabelController extends Controller
     {
         abort_if($label->project_id !== $project->id, 404);
 
+        $labelId = $label->id;
         $label->delete();
+
+        broadcast(new LabelDeleted($labelId, $project->id))->toOthers();
 
         return response()->json(['message' => 'Label deleted.']);
     }
@@ -58,6 +70,8 @@ class LabelController extends Controller
         $task = $project->tasks()->findOrFail($request->task_id);
         $task->labels()->syncWithoutDetaching([$label->id]);
 
+        broadcast(new TaskUpdated($task->load('assignee', 'labels'), $project->id))->toOthers();
+
         return response()->json(['message' => 'Label attached.']);
     }
 
@@ -69,6 +83,8 @@ class LabelController extends Controller
 
         $task = $project->tasks()->findOrFail($request->task_id);
         $task->labels()->detach($label->id);
+
+        broadcast(new TaskUpdated($task->load('assignee', 'labels'), $project->id))->toOthers();
 
         return response()->json(['message' => 'Label detached.']);
     }
@@ -82,6 +98,8 @@ class LabelController extends Controller
         $note = $project->notes()->findOrFail($request->note_id);
         $note->labels()->syncWithoutDetaching([$label->id]);
 
+        broadcast(new NoteUpdated($note->load('author', 'labels'), $project->id))->toOthers();
+
         return response()->json(['message' => 'Label attached.']);
     }
 
@@ -93,6 +111,8 @@ class LabelController extends Controller
 
         $note = $project->notes()->findOrFail($request->note_id);
         $note->labels()->detach($label->id);
+
+        broadcast(new NoteUpdated($note->load('author', 'labels'), $project->id))->toOthers();
 
         return response()->json(['message' => 'Label detached.']);
     }

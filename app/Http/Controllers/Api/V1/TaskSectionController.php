@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\SectionCreated;
+use App\Events\SectionDeleted;
+use App\Events\SectionUpdated;
+use App\Events\SectionsReordered;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskSectionRequest;
 use App\Http\Requests\UpdateTaskSectionRequest;
@@ -37,6 +41,8 @@ class TaskSectionController extends Controller
             'position' => $position,
         ]);
 
+        broadcast(new SectionCreated($section, $project->id))->toOthers();
+
         return new TaskSectionResource($section);
     }
 
@@ -46,6 +52,8 @@ class TaskSectionController extends Controller
 
         $section->update($request->validated());
 
+        broadcast(new SectionUpdated($section, $project->id))->toOthers();
+
         return new TaskSectionResource($section);
     }
 
@@ -53,7 +61,10 @@ class TaskSectionController extends Controller
     {
         abort_if($section->project_id !== $project->id, 404);
 
+        $sectionId = $section->id;
         $section->delete();
+
+        broadcast(new SectionDeleted($sectionId, $project->id))->toOthers();
 
         return response()->json(['message' => 'Section deleted.']);
     }
@@ -61,8 +72,8 @@ class TaskSectionController extends Controller
     public function reorder(Request $request, Project $project)
     {
         $request->validate([
-            'sections'          => 'required|array',
-            'sections.*.id'     => 'required|integer|exists:task_sections,id',
+            'sections'            => 'required|array',
+            'sections.*.id'       => 'required|integer|exists:task_sections,id',
             'sections.*.position' => 'required|integer|min:0',
         ]);
 
@@ -71,6 +82,8 @@ class TaskSectionController extends Controller
                 ->where('id', $item['id'])
                 ->update(['position' => $item['position']]);
         }
+
+        broadcast(new SectionsReordered($project->id))->toOthers();
 
         return response()->json(['message' => 'Sections reordered.']);
     }

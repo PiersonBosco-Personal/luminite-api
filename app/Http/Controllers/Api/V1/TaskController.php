@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\TaskCreated;
+use App\Events\TaskDeleted;
+use App\Events\TasksReordered;
+use App\Events\TaskUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
@@ -33,7 +37,11 @@ class TaskController extends Controller
             ['position' => $position]
         ));
 
-        return new TaskResource($task->load('assignee', 'labels'));
+        $task->load('assignee', 'labels');
+
+        broadcast(new TaskCreated($task, $project->id))->toOthers();
+
+        return new TaskResource($task);
     }
 
     public function show(Project $project, Task $task)
@@ -50,15 +58,21 @@ class TaskController extends Controller
         abort_if($task->project_id !== $project->id, 404);
 
         $task->update($request->validated());
+        $task->load('assignee', 'labels');
 
-        return new TaskResource($task->load('assignee', 'labels'));
+        broadcast(new TaskUpdated($task, $project->id))->toOthers();
+
+        return new TaskResource($task);
     }
 
     public function destroy(Project $project, Task $task)
     {
         abort_if($task->project_id !== $project->id, 404);
 
+        $taskId = $task->id;
         $task->delete();
+
+        broadcast(new TaskDeleted($taskId, $project->id))->toOthers();
 
         return response()->json(['message' => 'Task deleted.']);
     }
@@ -80,6 +94,8 @@ class TaskController extends Controller
                     'position'   => $item['position'],
                 ]);
         }
+
+        broadcast(new TasksReordered($project->id))->toOthers();
 
         return response()->json(['message' => 'Tasks reordered.']);
     }
