@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\LabelController;
@@ -18,6 +19,8 @@ Route::prefix('v1')->group(function () {
     // Public
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login',    [AuthController::class, 'login']);
+    Route::get('/invitations/{token}',         [InvitationController::class, 'show']);
+    Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
     // Protected
     Route::middleware('auth:sanctum')->group(function () {

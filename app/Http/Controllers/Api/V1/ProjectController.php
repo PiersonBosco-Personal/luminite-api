@@ -9,9 +9,13 @@ use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
 use App\Http\Resources\UserResource;
+use App\Mail\ProjectInvitationMail;
 use App\Models\Project;
+use App\Models\ProjectInvitation;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class ProjectController extends Controller
 {
@@ -86,15 +90,41 @@ class ProjectController extends Controller
     {
         $this->authorize('manageMember', $project);
 
-        $user = User::where('email', $request->email)->firstOrFail();
+        $user = User::where('email', $request->email)->first();
 
-        if ($project->members()->where('user_id', $user->id)->exists()) {
-            return response()->json(['message' => 'User is already a member.'], 409);
+        if ($user) {
+            if ($project->members()->where('user_id', $user->id)->exists()) {
+                return response()->json(['message' => 'User is already a member.'], 409);
+            }
+
+            $project->members()->attach($user->id, ['role' => $request->role ?? 'member']);
+
+            return new UserResource($user);
         }
 
-        $project->members()->attach($user->id, ['role' => $request->role ?? 'member']);
+        // User doesn't exist — send an invite
+        $alreadyInvited = ProjectInvitation::pending()
+            ->where('project_id', $project->id)
+            ->where('email', $request->email)
+            ->exists();
 
-        return new UserResource($user);
+        if ($alreadyInvited) {
+            return response()->json(['message' => 'An invitation has already been sent to this email.'], 409);
+        }
+
+        $invitation = ProjectInvitation::create([
+            'project_id' => $project->id,
+            'invited_by' => $request->user()->id,
+            'email'      => $request->email,
+            'token'      => Str::random(64),
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $invitation->load('project', 'inviter');
+
+        Mail::to($request->email)->send(new ProjectInvitationMail($invitation));
+
+        return response()->json(['message' => 'Invitation sent.'], 202);
     }
 
     public function removeMember(Request $request, Project $project, User $user)

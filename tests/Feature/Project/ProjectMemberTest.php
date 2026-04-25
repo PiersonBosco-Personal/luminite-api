@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 
 // --- List Members ---
@@ -57,13 +58,38 @@ it('returns 409 when user is already a member', function () {
     ])->assertStatus(409);
 });
 
-it('returns 422 when email does not exist in users table', function () {
+it('sends an invitation when email does not belong to an existing user', function () {
+    Mail::fake();
+
     ['project' => $project, 'owner' => $owner] = createProjectWithMember();
     Sanctum::actingAs($owner);
 
     $this->postJson("/api/v1/projects/{$project->id}/members", [
-        'email' => 'nonexistent@example.com',
-    ])->assertStatus(422);
+        'email' => 'newperson@example.com',
+    ])->assertStatus(202)->assertJsonFragment(['message' => 'Invitation sent.']);
+
+    Mail::assertSent(\App\Mail\ProjectInvitationMail::class);
+
+    expect(\App\Models\ProjectInvitation::where('email', 'newperson@example.com')->exists())->toBeTrue();
+});
+
+it('returns 409 when a pending invitation already exists for that email', function () {
+    Mail::fake();
+
+    ['project' => $project, 'owner' => $owner] = createProjectWithMember();
+    Sanctum::actingAs($owner);
+
+    // First invite
+    $this->postJson("/api/v1/projects/{$project->id}/members", [
+        'email' => 'newperson@example.com',
+    ])->assertStatus(202);
+
+    // Duplicate invite
+    $this->postJson("/api/v1/projects/{$project->id}/members", [
+        'email' => 'newperson@example.com',
+    ])->assertStatus(409);
+
+    Mail::assertSentCount(1);
 });
 
 it('returns 422 when email field is missing on add member', function () {
