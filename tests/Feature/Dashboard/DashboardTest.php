@@ -111,6 +111,49 @@ it('returns 403 on store when not a member', function () {
     ])->assertStatus(403);
 });
 
+it('uses the widget catalog default dimensions on store', function () {
+    seedWidgets();
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $widget  = Widget::where('slug', 'tasks_board')->first();
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
+        'widget_id' => $widget->id,
+    ])->assertStatus(201);
+
+    expect($response->json('data.grid_w'))->toBe($widget->default_w)
+        ->and($response->json('data.grid_h'))->toBe($widget->default_h);
+});
+
+it('tasks_board widget is added at grid_x=0 with its catalog dimensions', function () {
+    seedWidgets();
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $widget  = Widget::where('slug', 'tasks_board')->first();
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
+        'widget_id' => $widget->id,
+    ])->assertStatus(201);
+
+    expect($response->json('data.grid_x'))->toBe(0)
+        ->and($response->json('data.grid_w'))->toBe(8)
+        ->and($response->json('data.grid_h'))->toBe(6);
+});
+
+it('widget response includes nested widget metadata', function () {
+    seedWidgets();
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $widget  = Widget::where('slug', 'tasks_list')->first();
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
+        'widget_id' => $widget->id,
+    ])->assertStatus(201);
+
+    expect($response->json('data.widget.slug'))->toBe('tasks_list')
+        ->and($response->json('data.widget.name'))->not->toBeNull();
+});
+
 // --- Sync ---
 
 it('member can sync dashboard widget layout', function () {
