@@ -14,6 +14,7 @@ class Task extends Model
         'section_id',
         'parent_task_id',
         'assigned_to',
+        'created_by',
         'title',
         'description',
         'status',
@@ -52,6 +53,11 @@ class Task extends Model
     public function assignee()
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function labels()
