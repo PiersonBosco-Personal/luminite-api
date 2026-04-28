@@ -331,3 +331,34 @@ it('non-member is denied on the presence project channel', function () {
 
     expect($result)->toBeFalse();
 });
+
+// --- Presence Note Channel ---
+
+it('presence note channel returns user identity for a project member', function () {
+    $user    = User::factory()->create();
+    $project = createProject($user);
+    $note    = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    $result = channelCallback('presence-note.{noteId}')($user, $note->id);
+
+    expect($result)->toMatchArray(['id' => $user->id, 'name' => $user->name]);
+});
+
+it('non-member is denied on the presence note channel', function () {
+    $user    = User::factory()->create();
+    $other   = User::factory()->create();
+    $project = createProject($other);
+    $note    = Note::factory()->create(['project_id' => $project->id, 'created_by' => $other->id]);
+
+    $result = channelCallback('presence-note.{noteId}')($user, $note->id);
+
+    expect($result)->toBeFalse();
+});
+
+it('returns false on the presence note channel for a non-existent note', function () {
+    $user = User::factory()->create();
+
+    $result = channelCallback('presence-note.{noteId}')($user, 99999);
+
+    expect($result)->toBeFalse();
+});

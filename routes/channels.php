@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Note;
 use App\Models\Project;
 use Illuminate\Support\Facades\Broadcast;
 
@@ -34,6 +35,29 @@ Broadcast::channel('presence-project.{projectId}', function ($user, int $project
     }
 
     if (! $project->members()->where('user_id', $user->id)->exists()) {
+        return false;
+    }
+
+    return [
+        'id'   => $user->id,
+        'name' => $user->name,
+    ];
+});
+
+/*
+|--------------------------------------------------------------------------
+| Presence note channel
+|--------------------------------------------------------------------------
+| Tracks which users are currently viewing/editing a specific note.
+*/
+Broadcast::channel('presence-note.{noteId}', function ($user, int $noteId) {
+    $note = Note::find($noteId);
+
+    if (! $note) {
+        return false;
+    }
+
+    if (! $note->project->members()->where('user_id', $user->id)->exists()) {
         return false;
     }
 

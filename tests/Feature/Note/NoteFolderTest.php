@@ -121,3 +121,96 @@ it('returns 404 when deleting a folder from another project', function () {
     $this->deleteJson("/api/v1/projects/{$project->id}/note-folders/{$folder->id}")
         ->assertStatus(404);
 });
+
+// --- Sub-folders ---
+
+it('creates a sub-folder inside an existing root folder', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $parent  = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/note-folders", [
+        'name'      => 'Sub',
+        'parent_id' => $parent->id,
+    ])->assertStatus(201);
+
+    expect($response->json('data.parent_id'))->toBe($parent->id);
+});
+
+it('returns 422 when parent_id itself has a parent (one level deep only)', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $root    = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+    $sub     = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'parent_id' => $root->id]);
+
+    $this->postJson("/api/v1/projects/{$project->id}/note-folders", [
+        'name'      => 'Grandchild',
+        'parent_id' => $sub->id,
+    ])->assertStatus(422);
+});
+
+it('returns 422 when parent_id belongs to a different project', function () {
+    $user        = actingAsUser();
+    $project     = createProject($user);
+    $other       = User::factory()->create();
+    $project2    = createProject($other);
+    $otherFolder = NoteFolder::factory()->create(['project_id' => $project2->id, 'created_by' => $other->id]);
+
+    $this->postJson("/api/v1/projects/{$project->id}/note-folders", [
+        'name'      => 'Sub',
+        'parent_id' => $otherFolder->id,
+    ])->assertStatus(422);
+});
+
+it('auto-increments position scoped to parent on sub-folder create', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $parent  = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'parent_id' => $parent->id, 'position' => 0]);
+    NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'parent_id' => $parent->id, 'position' => 1]);
+
+    $response = $this->postJson("/api/v1/projects/{$project->id}/note-folders", [
+        'name'      => 'Third Sub',
+        'parent_id' => $parent->id,
+    ])->assertStatus(201);
+
+    expect($response->json('data.position'))->toBe(2);
+});
+
+it('cascade deletes sub-folders when the parent folder is deleted', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $parent  = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+    $child   = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'parent_id' => $parent->id]);
+
+    $this->deleteJson("/api/v1/projects/{$project->id}/note-folders/{$parent->id}")
+        ->assertStatus(200);
+
+    expect(NoteFolder::find($child->id))->toBeNull();
+});
+
+it('can move a root folder into another folder by updating parent_id', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $parent  = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+    $folder  = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    $response = $this->putJson("/api/v1/projects/{$project->id}/note-folders/{$folder->id}", [
+        'parent_id' => $parent->id,
+    ])->assertStatus(200);
+
+    expect($response->json('data.parent_id'))->toBe($parent->id);
+});
+
+it('returns 422 when updating parent_id to a folder that itself has a parent', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $root    = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+    $sub     = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'parent_id' => $root->id]);
+    $folder  = NoteFolder::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    $this->putJson("/api/v1/projects/{$project->id}/note-folders/{$folder->id}", [
+        'parent_id' => $sub->id,
+    ])->assertStatus(422);
+});

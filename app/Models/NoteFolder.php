@@ -11,6 +11,7 @@ class NoteFolder extends Model
 
     protected $fillable = [
         'project_id',
+        'parent_id',
         'created_by',
         'name',
         'position',
@@ -29,5 +30,15 @@ class NoteFolder extends Model
     public function notes()
     {
         return $this->hasMany(Note::class, 'folder_id');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(NoteFolder::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(NoteFolder::class, 'parent_id')->orderBy('position');
     }
 }
