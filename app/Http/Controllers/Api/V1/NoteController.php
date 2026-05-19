@@ -60,7 +60,7 @@ class NoteController extends Controller
     {
         abort_if($note->project_id !== $project->id, 404);
 
-        return new NoteResource($note->load('author', 'labels'));
+        return new NoteResource($note->load('author', 'labels', 'attachments.uploader'));
     }
 
     public function update(UpdateNoteRequest $request, Project $project, Note $note)
