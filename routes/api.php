@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\Api\V1\AttachmentController;
+use App\Http\Controllers\Api\V1\AttachmentFolderController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
@@ -32,6 +34,10 @@ Route::prefix('v1')->group(function () {
 
         // Dashboard widget delete (not project-scoped — frontend calls without project context)
         Route::delete('/dashboard-widgets/{dashboardWidget}', [DashboardController::class, 'destroy']);
+
+        // Attachments (auth only — not project-scoped)
+        Route::get('/attachments/{attachment}',    [AttachmentController::class, 'show']);
+        Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy']);
 
         // Projects
         Route::get('/projects',       [ProjectController::class, 'index']);
@@ -101,6 +107,18 @@ Route::prefix('v1')->group(function () {
             // AI (stubs — Phase 4)
             Route::get('/projects/{project}/ai/conversations',    [AiController::class, 'index']);
             Route::post('/projects/{project}/ai/conversations',   [AiController::class, 'store']);
+
+            // Attachment Folders
+            Route::get('/projects/{project}/attachment-folders',                              [AttachmentFolderController::class, 'index']);
+            Route::post('/projects/{project}/attachment-folders',                             [AttachmentFolderController::class, 'store']);
+            Route::put('/projects/{project}/attachment-folders/{attachmentFolder}',           [AttachmentFolderController::class, 'update']);
+            Route::delete('/projects/{project}/attachment-folders/{attachmentFolder}',        [AttachmentFolderController::class, 'destroy']);
+
+            // Attachments
+            Route::get('/projects/{project}/attachments',                                     [AttachmentController::class, 'indexForProject']);
+            Route::post('/projects/{project}/attachments',                                    [AttachmentController::class, 'storeForProject']);
+            Route::post('/projects/{project}/tasks/{task}/attachments',                       [AttachmentController::class, 'storeForTask']);
+            Route::post('/projects/{project}/notes/{note}/attachments',                       [AttachmentController::class, 'storeForNote']);
         });
     });
 });
