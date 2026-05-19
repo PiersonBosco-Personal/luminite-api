@@ -49,7 +49,7 @@ class TaskController extends Controller
         abort_if($task->project_id !== $project->id, 404);
 
         return new TaskResource(
-            $task->load('assignee', 'labels', 'subtasks.assignee', 'notes')
+            $task->load('assignee', 'labels', 'subtasks.assignee', 'notes', 'attachments.uploader')
         );
     }
 

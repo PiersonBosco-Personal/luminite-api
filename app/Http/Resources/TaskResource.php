@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\AttachmentResource;
 
 class TaskResource extends JsonResource
 {
@@ -24,6 +25,7 @@ class TaskResource extends JsonResource
             'subtasks_count' => $this->whenCounted('subtasks'),
             'labels'         => LabelResource::collection($this->whenLoaded('labels')),
             'subtasks'       => TaskResource::collection($this->whenLoaded('subtasks')),
+            'attachments'    => AttachmentResource::collection($this->whenLoaded('attachments')),
             'created_at'     => $this->created_at,
             'updated_at'     => $this->updated_at,
         ];
