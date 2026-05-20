@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TaskSectionController;
 use App\Http\Controllers\Api\V1\TechStackController;
 use App\Http\Controllers\Api\V1\WidgetController;
+use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\WorkTypeController;
 use Illuminate\Support\Facades\Route;
 
@@ -126,6 +127,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/projects/{project}/work-types',                             [WorkTypeController::class, 'store']);
             Route::put('/projects/{project}/work-types/{workType}',                   [WorkTypeController::class, 'update']);
             Route::delete('/projects/{project}/work-types/{workType}',                [WorkTypeController::class, 'destroy']);
+
+            // Time Entries
+            Route::get('/projects/{project}/time-entries',                            [TimeEntryController::class, 'index']);
         });
     });
 });
