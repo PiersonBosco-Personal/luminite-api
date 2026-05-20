@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TaskSectionController;
 use App\Http\Controllers\Api\V1\TechStackController;
 use App\Http\Controllers\Api\V1\WidgetController;
+use App\Http\Controllers\Api\V1\WorkTypeController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -119,6 +120,9 @@ Route::prefix('v1')->group(function () {
             Route::post('/projects/{project}/attachments',                                    [AttachmentController::class, 'storeForProject']);
             Route::post('/projects/{project}/tasks/{task}/attachments',                       [AttachmentController::class, 'storeForTask']);
             Route::post('/projects/{project}/notes/{note}/attachments',                       [AttachmentController::class, 'storeForNote']);
+
+            // Work Types
+            Route::get('/projects/{project}/work-types',                              [WorkTypeController::class, 'index']);
         });
     });
 });
