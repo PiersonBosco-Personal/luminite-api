@@ -145,6 +145,57 @@ class TimeEntryController extends Controller
         return new TimeEntryResource($entry);
     }
 
+    public function report(Request $request, Project $project)
+    {
+        $groupBy = $request->input('group_by', 'work_type');
+        abort_unless(in_array($groupBy, ['user', 'work_type', 'task'], true), 422, 'Invalid group_by.');
+
+        $query = $project->timeEntries()->whereNotNull('duration_minutes');
+
+        if ($request->filled('from')) {
+            $query->whereDate('logged_at', '>=', $request->date('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('logged_at', '<=', $request->date('to'));
+        }
+
+        $entries = $query->with(['user', 'workType', 'task'])->get();
+
+        $total   = (int) $entries->sum('duration_minutes');
+        $buckets = $entries->groupBy(function (TimeEntry $e) use ($groupBy) {
+            return match ($groupBy) {
+                'user'      => $e->user_id,
+                'work_type' => $e->work_type_id,
+                'task'      => $e->task_id,
+            };
+        });
+
+        $groups = $buckets->map(function ($bucket, $key) use ($groupBy, $total) {
+            $minutes = (int) $bucket->sum('duration_minutes');
+            $first   = $bucket->first();
+            $label   = match ($groupBy) {
+                'user'      => $first->user?->name ?? 'Unknown user',
+                'work_type' => $first->workType?->name ?? 'No work type',
+                'task'      => $first->task?->title ?? 'Deleted task',
+            };
+
+            return [
+                'id'      => is_numeric($key) ? (int) $key : ($key === '' ? null : $key),
+                'label'   => $label,
+                'minutes' => $minutes,
+                'percent' => $total > 0 ? round($minutes / $total * 100, 2) : 0.0,
+            ];
+        })->values();
+
+        return response()->json([
+            'total_minutes' => $total,
+            'from'          => $request->input('from'),
+            'to'            => $request->input('to'),
+            'group_by'      => $groupBy,
+            'groups'        => $groups,
+        ]);
+    }
+
     public function destroy(Project $project, TimeEntry $timeEntry)
     {
         abort_if($timeEntry->project_id !== $project->id, 404);

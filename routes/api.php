@@ -134,10 +134,11 @@ Route::prefix('v1')->group(function () {
             // Time Entries
             Route::get('/projects/{project}/time-entries',                            [TimeEntryController::class, 'index']);
             Route::post('/projects/{project}/time-entries',                           [TimeEntryController::class, 'store']);
-            Route::put('/projects/{project}/time-entries/{timeEntry}',                [TimeEntryController::class, 'update']);
-            Route::delete('/projects/{project}/time-entries/{timeEntry}',             [TimeEntryController::class, 'destroy']);
+            Route::get('/projects/{project}/time-entries/report',                     [TimeEntryController::class, 'report']);
             Route::post('/projects/{project}/time-entries/timer/start',               [TimeEntryController::class, 'startTimer']);
             Route::post('/projects/{project}/time-entries/timer/stop',                [TimeEntryController::class, 'stopTimer']);
+            Route::put('/projects/{project}/time-entries/{timeEntry}',                [TimeEntryController::class, 'update']);
+            Route::delete('/projects/{project}/time-entries/{timeEntry}',             [TimeEntryController::class, 'destroy']);
         });
     });
 });
