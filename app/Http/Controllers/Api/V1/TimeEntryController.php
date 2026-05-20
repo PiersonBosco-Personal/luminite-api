@@ -54,4 +54,15 @@ class TimeEntryController extends Controller
 
         return (new TimeEntryResource($entry))->response()->setStatusCode(201);
     }
+
+    public function update(UpdateTimeEntryRequest $request, Project $project, TimeEntry $timeEntry)
+    {
+        abort_if($timeEntry->project_id !== $project->id, 404);
+        $this->authorize('update', $timeEntry);
+
+        $timeEntry->update($request->validated());
+        $timeEntry->load('user', 'workType', 'task');
+
+        return new TimeEntryResource($timeEntry);
+    }
 }
