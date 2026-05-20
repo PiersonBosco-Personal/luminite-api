@@ -123,6 +123,7 @@ Route::prefix('v1')->group(function () {
 
             // Work Types
             Route::get('/projects/{project}/work-types',                              [WorkTypeController::class, 'index']);
+            Route::post('/projects/{project}/work-types',                             [WorkTypeController::class, 'store']);
         });
     });
 });

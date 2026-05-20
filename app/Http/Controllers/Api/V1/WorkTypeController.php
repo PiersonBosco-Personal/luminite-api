@@ -17,4 +17,11 @@ class WorkTypeController extends Controller
 
         return WorkTypeResource::collection($workTypes);
     }
+
+    public function store(StoreWorkTypeRequest $request, Project $project)
+    {
+        $workType = $project->workTypes()->create($request->validated());
+
+        return new WorkTypeResource($workType);
+    }
 }
