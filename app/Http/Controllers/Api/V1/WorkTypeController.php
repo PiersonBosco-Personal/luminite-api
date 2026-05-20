@@ -33,4 +33,13 @@ class WorkTypeController extends Controller
 
         return new WorkTypeResource($workType);
     }
+
+    public function destroy(Project $project, WorkType $workType)
+    {
+        abort_if($workType->project_id !== $project->id, 404);
+
+        $workType->delete();
+
+        return response()->json(['message' => 'Work type deleted.']);
+    }
 }
