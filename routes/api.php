@@ -31,6 +31,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/user',    [AuthController::class, 'user']);
 
+        // User-scoped active timer (intentionally not project-scoped — see spec section 4)
+        Route::get('/user/active-timer', [TimeEntryController::class, 'activeTimer']);
+
         // Widget catalog (all active widget types)
         Route::get('/widgets', [WidgetController::class, 'index']);
 

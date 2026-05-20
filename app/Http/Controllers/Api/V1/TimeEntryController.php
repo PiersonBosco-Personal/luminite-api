@@ -67,6 +67,19 @@ class TimeEntryController extends Controller
         return new TimeEntryResource($timeEntry);
     }
 
+    public function activeTimer(Request $request)
+    {
+        $entry = TimeEntry::query()
+            ->where('user_id', $request->user()->id)
+            ->active()
+            ->with(['user', 'workType', 'task'])
+            ->first();
+
+        return response()->json([
+            'data' => $entry ? (new TimeEntryResource($entry))->resolve() : null,
+        ]);
+    }
+
     public function startTimer(StartTimerRequest $request, Project $project)
     {
         $userId = $request->user()->id;
