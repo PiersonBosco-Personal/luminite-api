@@ -24,4 +24,13 @@ class WorkTypeController extends Controller
 
         return new WorkTypeResource($workType);
     }
+
+    public function update(UpdateWorkTypeRequest $request, Project $project, WorkType $workType)
+    {
+        abort_if($workType->project_id !== $project->id, 404);
+
+        $workType->update($request->validated());
+
+        return new WorkTypeResource($workType);
+    }
 }
