@@ -130,6 +130,7 @@ Route::prefix('v1')->group(function () {
 
             // Time Entries
             Route::get('/projects/{project}/time-entries',                            [TimeEntryController::class, 'index']);
+            Route::post('/projects/{project}/time-entries',                           [TimeEntryController::class, 'store']);
         });
     });
 });

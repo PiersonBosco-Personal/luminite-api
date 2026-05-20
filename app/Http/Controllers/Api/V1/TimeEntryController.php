@@ -39,4 +39,19 @@ class TimeEntryController extends Controller
 
         return TimeEntryResource::collection($entries);
     }
+
+    public function store(StoreTimeEntryRequest $request, Project $project)
+    {
+        $entry = $project->timeEntries()->create(array_merge(
+            $request->validated(),
+            [
+                'user_id'   => $request->user()->id,
+                'logged_at' => $request->date('logged_at') ?? today(),
+            ]
+        ));
+
+        $entry->load('user', 'workType', 'task');
+
+        return (new TimeEntryResource($entry))->response()->setStatusCode(201);
+    }
 }
