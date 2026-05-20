@@ -65,4 +65,14 @@ class TimeEntryController extends Controller
 
         return new TimeEntryResource($timeEntry);
     }
+
+    public function destroy(Project $project, TimeEntry $timeEntry)
+    {
+        abort_if($timeEntry->project_id !== $project->id, 404);
+        $this->authorize('delete', $timeEntry);
+
+        $timeEntry->delete();
+
+        return response()->json(['message' => 'Time entry deleted.']);
+    }
 }

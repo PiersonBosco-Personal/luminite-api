@@ -132,6 +132,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/projects/{project}/time-entries',                            [TimeEntryController::class, 'index']);
             Route::post('/projects/{project}/time-entries',                           [TimeEntryController::class, 'store']);
             Route::put('/projects/{project}/time-entries/{timeEntry}',                [TimeEntryController::class, 'update']);
+            Route::delete('/projects/{project}/time-entries/{timeEntry}',             [TimeEntryController::class, 'destroy']);
         });
     });
 });
