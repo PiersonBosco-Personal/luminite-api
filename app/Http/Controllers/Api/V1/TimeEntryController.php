@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\TimeEntryLogged;
+use App\Events\TimerStarted;
+use App\Events\TimerStopped;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StartTimerRequest;
 use App\Http\Requests\StoreTimeEntryRequest;
@@ -53,6 +56,8 @@ class TimeEntryController extends Controller
 
         $entry->load('user', 'workType', 'task');
 
+        broadcast(new TimeEntryLogged($entry, $project->id))->toOthers();
+
         return (new TimeEntryResource($entry))->response()->setStatusCode(201);
     }
 
@@ -63,6 +68,8 @@ class TimeEntryController extends Controller
 
         $timeEntry->update($request->validated());
         $timeEntry->load('user', 'workType', 'task');
+
+        broadcast(new TimeEntryLogged($timeEntry, $project->id))->toOthers();
 
         return new TimeEntryResource($timeEntry);
     }
@@ -106,6 +113,8 @@ class TimeEntryController extends Controller
 
         $entry->load('user', 'workType', 'task');
 
+        broadcast(new TimerStarted($entry, $project->id))->toOthers();
+
         return (new TimeEntryResource($entry))
             ->response()
             ->setStatusCode(201);
@@ -129,6 +138,9 @@ class TimeEntryController extends Controller
         ]);
 
         $entry->load('user', 'workType', 'task');
+
+        broadcast(new TimerStopped($entry, $project->id))->toOthers();
+        broadcast(new TimeEntryLogged($entry, $project->id))->toOthers();
 
         return new TimeEntryResource($entry);
     }
