@@ -98,6 +98,28 @@ class TimeEntryController extends Controller
             ->setStatusCode(201);
     }
 
+    public function stopTimer(Request $request, Project $project)
+    {
+        $entry = $project->timeEntries()
+            ->where('user_id', $request->user()->id)
+            ->active()
+            ->first();
+
+        abort_if(! $entry, 404, 'No active timer for this user in this project.');
+
+        $now     = now();
+        $minutes = max(1, (int) round($entry->started_at->diffInSeconds($now) / 60));
+
+        $entry->update([
+            'duration_minutes' => $minutes,
+            'stopped_at'       => $now,
+        ]);
+
+        $entry->load('user', 'workType', 'task');
+
+        return new TimeEntryResource($entry);
+    }
+
     public function destroy(Project $project, TimeEntry $timeEntry)
     {
         abort_if($timeEntry->project_id !== $project->id, 404);

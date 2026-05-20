@@ -134,6 +134,7 @@ Route::prefix('v1')->group(function () {
             Route::put('/projects/{project}/time-entries/{timeEntry}',                [TimeEntryController::class, 'update']);
             Route::delete('/projects/{project}/time-entries/{timeEntry}',             [TimeEntryController::class, 'destroy']);
             Route::post('/projects/{project}/time-entries/timer/start',               [TimeEntryController::class, 'startTimer']);
+            Route::post('/projects/{project}/time-entries/timer/stop',                [TimeEntryController::class, 'stopTimer']);
         });
     });
 });
