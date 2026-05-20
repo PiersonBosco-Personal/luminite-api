@@ -46,6 +46,11 @@ class User extends Authenticatable
         return $this->hasMany(AiConversation::class);
     }
 
+    public function timeEntries()
+    {
+        return $this->hasMany(\App\Models\TimeEntry::class);
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *
