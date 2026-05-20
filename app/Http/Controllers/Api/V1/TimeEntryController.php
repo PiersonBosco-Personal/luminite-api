@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StartTimerRequest;
 use App\Http\Requests\StoreTimeEntryRequest;
 use App\Http\Requests\UpdateTimeEntryRequest;
 use App\Http\Resources\TimeEntryResource;
@@ -64,6 +65,37 @@ class TimeEntryController extends Controller
         $timeEntry->load('user', 'workType', 'task');
 
         return new TimeEntryResource($timeEntry);
+    }
+
+    public function startTimer(StartTimerRequest $request, Project $project)
+    {
+        $userId = $request->user()->id;
+
+        $hasActive = TimeEntry::query()
+            ->where('user_id', $userId)
+            ->active()
+            ->exists();
+
+        if ($hasActive) {
+            return response()->json([
+                'message' => 'You already have an active timer running.',
+            ], 409);
+        }
+
+        $entry = $project->timeEntries()->create([
+            'task_id'      => $request->integer('task_id'),
+            'work_type_id' => $request->input('work_type_id'),
+            'user_id'      => $userId,
+            'description'  => $request->input('description'),
+            'started_at'   => now(),
+            'logged_at'    => today(),
+        ]);
+
+        $entry->load('user', 'workType', 'task');
+
+        return (new TimeEntryResource($entry))
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function destroy(Project $project, TimeEntry $timeEntry)
