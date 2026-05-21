@@ -43,8 +43,16 @@ class ProjectController extends Controller
 
             $project->members()->attach($request->user()->id, ['role' => 'owner']);
 
-            foreach (['Development', 'Testing', 'Design', 'Meeting', 'Documentation', 'Other'] as $name) {
-                $project->workTypes()->create(['name' => $name]);
+            $defaultWorkTypes = [
+                'Development'   => 'blue',
+                'Testing'       => 'green',
+                'Design'        => 'purple',
+                'Meeting'       => 'amber',
+                'Documentation' => 'cyan',
+                'Other'         => 'slate',
+            ];
+            foreach ($defaultWorkTypes as $name => $color) {
+                $project->workTypes()->create(['name' => $name, 'color' => $color]);
             }
 
             return new ProjectResource($project->load('owner'));

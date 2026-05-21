@@ -45,6 +45,8 @@ class WorkTypeController extends Controller
         }
 
         if ($existing) {
+            // Reactivate keeps the existing color — the row "comes back as it
+            // was". A color provided in this request is intentionally ignored.
             $existing->update([
                 'is_active' => true,
                 'name'      => $name,
@@ -54,10 +56,32 @@ class WorkTypeController extends Controller
             return new WorkTypeResource($existing);
         }
 
+        if (! isset($data['color']) || $data['color'] === null) {
+            $data['color'] = $this->nextAvailableColor($project);
+        }
+
         $workType = $project->workTypes()->create($data);
         $workType->loadCount('timeEntries');
 
         return (new WorkTypeResource($workType))->response()->setStatusCode(201);
+    }
+
+    /**
+     * Walk the palette in declaration order and return the first color not
+     * already used by any work type in the project (active or inactive). Falls
+     * back to 'slate' if every assignable color is in use.
+     */
+    private function nextAvailableColor(Project $project): string
+    {
+        $used = $project->workTypes()->pluck('color')->filter()->all();
+
+        foreach (WorkType::ASSIGNABLE_COLORS as $color) {
+            if (! in_array($color, $used, true)) {
+                return $color;
+            }
+        }
+
+        return 'slate';
     }
 
     public function update(UpdateWorkTypeRequest $request, Project $project, WorkType $workType)

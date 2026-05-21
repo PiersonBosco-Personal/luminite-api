@@ -182,6 +182,7 @@ class TimeEntryController extends Controller
             return [
                 'id'      => is_numeric($key) ? (int) $key : ($key === '' ? null : $key),
                 'label'   => $label,
+                'color'   => $groupBy === 'work_type' ? $first->workType?->color : null,
                 'minutes' => $minutes,
                 'percent' => $total > 0 ? round($minutes / $total * 100, 2) : 0.0,
             ];
