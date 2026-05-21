@@ -13,7 +13,11 @@ class WorkTypeController extends Controller
 {
     public function index(Project $project)
     {
-        $workTypes = $project->workTypes()->orderBy('name')->get();
+        $workTypes = $project->workTypes()
+            ->withCount('timeEntries')
+            ->orderBy('is_active', 'desc')
+            ->orderBy('name')
+            ->get();
 
         return WorkTypeResource::collection($workTypes);
     }

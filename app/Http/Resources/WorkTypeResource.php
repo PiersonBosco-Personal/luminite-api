@@ -10,12 +10,13 @@ class WorkTypeResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'         => $this->id,
-            'project_id' => $this->project_id,
-            'name'       => $this->name,
-            'is_active'  => $this->is_active,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'id'                 => $this->id,
+            'project_id'         => $this->project_id,
+            'name'               => $this->name,
+            'is_active'          => $this->is_active,
+            'time_entries_count' => $this->time_entries_count ?? 0,
+            'created_at'         => $this->created_at,
+            'updated_at'         => $this->updated_at,
         ];
     }
 }
