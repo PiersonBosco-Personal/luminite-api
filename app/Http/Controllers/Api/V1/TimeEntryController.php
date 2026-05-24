@@ -213,25 +213,25 @@ class TimeEntryController extends Controller
 
             foreach ($groups as &$group) {
                 $userTotal = $group['minutes'];
-                $subRows   = $breakdown
+                $subGroups = $breakdown
                     ->where('user_id', $group['id'])
                     ->map(function ($row) use ($workTypes, $userTotal) {
-                        $wt = $row->work_type_id ? $workTypes->get($row->work_type_id) : null;
+                        $wt = $row->work_type_id !== null ? $workTypes->get($row->work_type_id) : null;
                         return [
                             'id'      => $row->work_type_id !== null ? (int) $row->work_type_id : null,
                             'label'   => $wt?->name ?? 'No work type',
                             'minutes' => (int) $row->minutes,
                             'color'   => $wt?->color,
                             'percent' => $userTotal > 0
-                                ? (int) round($row->minutes / $userTotal * 100)
-                                : 0,
+                                ? round($row->minutes / $userTotal * 100, 2)
+                                : 0.0,
                         ];
                     })
                     ->sortBy([['minutes', 'desc'], ['label', 'asc']])
                     ->values()
                     ->all();
 
-                $group['sub_groups'] = $subRows;
+                $group['sub_groups'] = $subGroups;
             }
             unset($group);
         } else {

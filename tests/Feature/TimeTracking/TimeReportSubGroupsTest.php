@@ -140,8 +140,9 @@ it('excludes running timers from sub_groups', function () {
         'started_at' => '2026-05-15 10:00:00', 'logged_at' => '2026-05-15',
     ]);
 
-    $sub = $this->getJson(reportUrl($this->project))->json('groups.0.sub_groups.0');
-    expect($sub['minutes'])->toBe(60);
+    $subs = $this->getJson(reportUrl($this->project))->json('groups.0.sub_groups');
+    expect($subs)->toHaveCount(1);
+    expect($subs[0]['minutes'])->toBe(60);
 });
 
 it('returns sub_groups: null for group_by=work_type', function () {
@@ -169,7 +170,7 @@ it('returns sub_groups: null for group_by=task', function () {
     expect($groups[0]['sub_groups'])->toBeNull();
 });
 
-it('returns valid shape for empty date range', function () {
+it('returns valid shape when no entries match', function () {
     $response = $this->getJson(reportUrl($this->project));
 
     $response->assertOk();
