@@ -12,8 +12,10 @@ use App\Http\Requests\UpdateTimeEntryRequest;
 use App\Http\Resources\TimeEntryResource;
 use App\Models\Project;
 use App\Models\TimeEntry;
+use App\Models\WorkType;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TimeEntryController extends Controller
 {
@@ -186,7 +188,58 @@ class TimeEntryController extends Controller
                 'minutes' => $minutes,
                 'percent' => $total > 0 ? round($minutes / $total * 100, 2) : 0.0,
             ];
-        })->values();
+        })->values()->all();
+
+        // Attach per-user work-type breakdown when grouping by user; null otherwise.
+        if ($groupBy === 'user') {
+            $breakdownQuery = DB::table('time_entries')
+                ->where('project_id', $project->id)
+                ->whereNotNull('duration_minutes');
+
+            if ($request->filled('from')) {
+                $breakdownQuery->whereDate('logged_at', '>=', $request->date('from'));
+            }
+            if ($request->filled('to')) {
+                $breakdownQuery->whereDate('logged_at', '<=', $request->date('to'));
+            }
+
+            $breakdown = $breakdownQuery
+                ->selectRaw('user_id, work_type_id, SUM(duration_minutes) as minutes')
+                ->groupBy('user_id', 'work_type_id')
+                ->get();
+
+            $workTypeIds = $breakdown->pluck('work_type_id')->filter()->unique();
+            $workTypes   = WorkType::whereIn('id', $workTypeIds)->get()->keyBy('id');
+
+            foreach ($groups as &$group) {
+                $userTotal = $group['minutes'];
+                $subRows   = $breakdown
+                    ->where('user_id', $group['id'])
+                    ->map(function ($row) use ($workTypes, $userTotal) {
+                        $wt = $row->work_type_id ? $workTypes->get($row->work_type_id) : null;
+                        return [
+                            'id'      => $row->work_type_id !== null ? (int) $row->work_type_id : null,
+                            'label'   => $wt?->name ?? 'No work type',
+                            'minutes' => (int) $row->minutes,
+                            'color'   => $wt?->color,
+                            'percent' => $userTotal > 0
+                                ? (int) round($row->minutes / $userTotal * 100)
+                                : 0,
+                        ];
+                    })
+                    ->sortBy([['minutes', 'desc'], ['label', 'asc']])
+                    ->values()
+                    ->all();
+
+                $group['sub_groups'] = $subRows;
+            }
+            unset($group);
+        } else {
+            foreach ($groups as &$group) {
+                $group['sub_groups'] = null;
+            }
+            unset($group);
+        }
 
         return response()->json([
             'total_minutes' => $total,
