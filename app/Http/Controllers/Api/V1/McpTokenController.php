@@ -38,7 +38,7 @@ class McpTokenController extends Controller
             'scopes.*'   => 'string|in:read,write',
         ]);
 
-        $project = Project::findOrFail($validated['project_id']);
+        $project = Project::find($validated['project_id']);
 
         if (! $project->members()->where('user_id', $request->user()->id)->exists()) {
             return response()->json(['message' => 'You do not have access to this project.'], 403);
@@ -65,9 +65,7 @@ class McpTokenController extends Controller
 
     public function destroy(Request $request, McpToken $mcpToken)
     {
-        if ($mcpToken->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Not found.'], 404);
-        }
+        abort_if($mcpToken->user_id !== $request->user()->id, 404);
 
         $mcpToken->delete();
 
