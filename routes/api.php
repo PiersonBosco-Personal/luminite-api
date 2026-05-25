@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\McpController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AttachmentFolderController;
 use App\Http\Controllers\Api\V1\InvitationController;
@@ -15,6 +16,10 @@ use App\Http\Controllers\Api\V1\TaskSectionController;
 use App\Http\Controllers\Api\V1\TechStackController;
 use App\Http\Controllers\Api\V1\WidgetController;
 use Illuminate\Support\Facades\Route;
+
+// MCP — outside /v1, protected by its own token auth
+Route::post('/mcp', [McpController::class, 'handle'])
+    ->middleware(['mcp.auth', 'throttle:mcp']);
 
 Route::prefix('v1')->group(function () {
 
