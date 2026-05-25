@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TaskSectionController;
 use App\Http\Controllers\Api\V1\TechStackController;
 use App\Http\Controllers\Api\V1\WidgetController;
+use App\Http\Controllers\Api\V1\McpTokenController;
 use Illuminate\Support\Facades\Route;
 
 // MCP — outside /v1, protected by its own token auth
@@ -39,6 +40,11 @@ Route::prefix('v1')->group(function () {
 
         // Dashboard widget delete (not project-scoped — frontend calls without project context)
         Route::delete('/dashboard-widgets/{dashboardWidget}', [DashboardController::class, 'destroy']);
+
+        // MCP token management
+        Route::get('/mcp-tokens',               [McpTokenController::class, 'index']);
+        Route::post('/mcp-tokens',              [McpTokenController::class, 'store']);
+        Route::delete('/mcp-tokens/{mcpToken}', [McpTokenController::class, 'destroy']);
 
         // Attachments (auth only — not project-scoped)
         Route::get('/attachments/{attachment}',    [AttachmentController::class, 'show']);
