@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TaskSectionController;
 use App\Http\Controllers\Api\V1\TechStackController;
 use App\Http\Controllers\Api\V1\WidgetController;
+use App\Http\Controllers\Api\V1\McpProjectController;
 use App\Http\Controllers\Api\V1\McpTokenController;
 use Illuminate\Support\Facades\Route;
 
@@ -114,6 +115,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/projects/{project}/dashboard-widgets',         [DashboardController::class, 'index']);
             Route::post('/projects/{project}/dashboard-widgets',        [DashboardController::class, 'store']);
             Route::post('/projects/{project}/dashboard-widgets/sync',   [DashboardController::class, 'sync']);
+
+            // MCP project stats + activity
+            Route::get('/projects/{project}/mcp/stats',    [McpProjectController::class, 'stats']);
+            Route::get('/projects/{project}/mcp/activity', [McpProjectController::class, 'activity']);
 
             // AI (stubs — Phase 4)
             Route::get('/projects/{project}/ai/conversations',    [AiController::class, 'index']);

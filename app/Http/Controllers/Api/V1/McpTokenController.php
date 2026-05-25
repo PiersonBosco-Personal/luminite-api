@@ -16,6 +16,7 @@ class McpTokenController extends Controller
             ->get()
             ->map(fn($t) => [
                 'id'            => $t->id,
+                'user_id'       => $t->user_id,
                 'name'          => $t->name,
                 'project_id'    => $t->project_id,
                 'project_name'  => $t->project->name,
@@ -24,6 +25,7 @@ class McpTokenController extends Controller
                 'request_count' => $t->request_count,
                 'expires_at'    => $t->expires_at,
                 'created_at'    => $t->created_at,
+                'updated_at'    => $t->updated_at,
             ]);
 
         return response()->json(['data' => $tokens]);
