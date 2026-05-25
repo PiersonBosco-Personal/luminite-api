@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\McpToken;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ValidateMcpToken
 {
@@ -22,8 +23,10 @@ class ValidateMcpToken
             return $this->error($request, 'Unauthorized: invalid or expired token');
         }
 
-        $token->increment('request_count');
-        $token->update(['last_used_at' => now()]);
+        $token->update([
+            'request_count' => DB::raw('request_count + 1'),
+            'last_used_at'  => now(),
+        ]);
 
         $request->attributes->set('mcp_user_id', $token->user_id);
         $request->attributes->set('mcp_project_id', $token->project_id);

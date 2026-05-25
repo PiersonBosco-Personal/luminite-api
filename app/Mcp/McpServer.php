@@ -12,6 +12,11 @@ class McpServer
 
     public function handle(array $payload, Request $request): array
     {
+        // Notifications have no id — no response required
+        if (!array_key_exists('id', $payload)) {
+            return [];
+        }
+
         $method = $payload['method'] ?? '';
         $id     = $payload['id'] ?? null;
 

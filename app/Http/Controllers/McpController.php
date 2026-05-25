@@ -13,6 +13,12 @@ class McpController extends Controller
         $payload = $request->json()->all();
         $server  = new McpServer([new GetProjectContext()]);
 
-        return response()->json($server->handle($payload, $request));
+        $response = $server->handle($payload, $request);
+
+        if (empty($response)) {
+            return response()->noContent();
+        }
+
+        return response()->json($response);
     }
 }

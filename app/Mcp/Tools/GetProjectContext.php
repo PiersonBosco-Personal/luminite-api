@@ -24,7 +24,11 @@ class GetProjectContext extends Tool
     {
         $project = Project::with([
             'techStacks' => fn($q) => $q->whereNull('parent_id')->with('children'),
-        ])->findOrFail($this->projectId($request));
+        ])->find($this->projectId($request));
+
+        if (! $project) {
+            return 'Error: the project associated with this token no longer exists.';
+        }
 
         $lines = ["Project: {$project->name}"];
 
