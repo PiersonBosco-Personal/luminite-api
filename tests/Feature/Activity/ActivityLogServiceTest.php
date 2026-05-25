@@ -80,8 +80,8 @@ it('does not debounce entries older than 5 minutes', function () {
         fieldChanged: 'due_date',
     );
 
-    // Manually age the first entry
-    $old->update(['created_at' => now()->subMinutes(6)]);
+    // Manually age the first entry (bypass Eloquent to avoid touching fillable)
+    \DB::table('activity_logs')->where('id', $old->id)->update(['created_at' => now()->subMinutes(6)]);
 
     $service->log(
         projectId:    $project->id,

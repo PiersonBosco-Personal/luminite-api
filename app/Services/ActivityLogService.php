@@ -23,6 +23,7 @@ class ActivityLogService
             $debounceKey = "{$userId}:{$eventType}:{$subjectId}:{$fieldChanged}";
 
             $existing = ActivityLog::where('project_id', $projectId)
+                ->where('user_id', $userId)
                 ->where('debounce_key', $debounceKey)
                 ->where('created_at', '>=', now()->subMinutes(5))
                 ->latest()
