@@ -22,6 +22,7 @@ class ActivityLog extends Model
         'field_changed',
         'via_mcp',
         'debounce_key',
+        'created_at',
     ];
 
     protected function casts(): array
