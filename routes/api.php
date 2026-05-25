@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\ActivityController;
 use App\Http\Controllers\Api\V1\AiController;
 use App\Http\Controllers\McpController;
 use App\Http\Controllers\Api\V1\AttachmentController;
@@ -119,6 +120,9 @@ Route::prefix('v1')->group(function () {
             // MCP project stats + activity
             Route::get('/projects/{project}/mcp/stats',    [McpProjectController::class, 'stats']);
             Route::get('/projects/{project}/mcp/activity', [McpProjectController::class, 'activity']);
+
+            // Activity feed
+            Route::get('/projects/{project}/activity', [ActivityController::class, 'index']);
 
             // AI (stubs — Phase 4)
             Route::get('/projects/{project}/ai/conversations',    [AiController::class, 'index']);
