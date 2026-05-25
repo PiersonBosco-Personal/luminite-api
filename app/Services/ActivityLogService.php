@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\ActivityCreated;
 use App\Models\ActivityLog;
 
 class ActivityLogService
@@ -57,8 +58,7 @@ class ActivityLogService
 
         $log->load('user');
 
-        // broadcast(new \App\Events\ActivityCreated($log, $projectId));
-        // TODO: uncomment in Task 3 when ActivityCreated event is created
+        broadcast(new ActivityCreated($log, $projectId));
 
         return $log;
     }
