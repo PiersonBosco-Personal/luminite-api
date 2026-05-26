@@ -13,11 +13,14 @@ use App\Http\Requests\UpdateLabelRequest;
 use App\Http\Resources\LabelResource;
 use App\Models\Label;
 use App\Models\Project;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class LabelController extends Controller
 {
+    public function __construct(private ActivityLogService $activity) {}
+
     public function index(Project $project)
     {
         return LabelResource::collection($project->labels);
@@ -28,6 +31,16 @@ class LabelController extends Controller
         $label = $project->labels()->create($request->validated());
 
         broadcast(new LabelCreated($label, $project->id))->toOthers();
+
+        $this->activity->log(
+            projectId:    $project->id,
+            userId:       auth()->id(),
+            eventType:    'label.created',
+            subjectType:  'label',
+            subjectLabel: $label->name,
+            subjectId:    $label->id,
+            description:  auth()->user()->name . " created label {$label->name}",
+        );
 
         return new LabelResource($label);
     }
@@ -47,10 +60,21 @@ class LabelController extends Controller
     {
         abort_if($label->project_id !== $project->id, 404);
 
-        $labelId = $label->id;
+        $labelName = $label->name;
+        $labelId   = $label->id;
         $label->delete();
 
         broadcast(new LabelDeleted($labelId, $project->id))->toOthers();
+
+        $this->activity->log(
+            projectId:    $project->id,
+            userId:       auth()->id(),
+            eventType:    'label.deleted',
+            subjectType:  'label',
+            subjectLabel: $labelName,
+            subjectId:    null,
+            description:  auth()->user()->name . " deleted label {$labelName}",
+        );
 
         return response()->json(['message' => 'Label deleted.']);
     }

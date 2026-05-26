@@ -12,10 +12,13 @@ use App\Http\Requests\UpdateTaskSectionRequest;
 use App\Http\Resources\TaskSectionResource;
 use App\Models\Project;
 use App\Models\TaskSection;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 
 class TaskSectionController extends Controller
 {
+    public function __construct(private ActivityLogService $activity) {}
+
     public function index(Project $project)
     {
         $sections = $project->taskSections()
@@ -43,6 +46,16 @@ class TaskSectionController extends Controller
 
         broadcast(new SectionCreated($section, $project->id))->toOthers();
 
+        $this->activity->log(
+            projectId:    $project->id,
+            userId:       auth()->id(),
+            eventType:    'section.created',
+            subjectType:  'section',
+            subjectLabel: $section->name,
+            subjectId:    $section->id,
+            description:  auth()->user()->name . " created section {$section->name}",
+        );
+
         return new TaskSectionResource($section);
     }
 
@@ -50,9 +63,25 @@ class TaskSectionController extends Controller
     {
         abort_if($section->project_id !== $project->id, 404);
 
+        $oldName = $section->name;
         $section->update($request->validated());
 
         broadcast(new SectionUpdated($section, $project->id))->toOthers();
+
+        if ($section->name !== $oldName) {
+            $this->activity->log(
+                projectId:    $project->id,
+                userId:       auth()->id(),
+                eventType:    'section.renamed',
+                subjectType:  'section',
+                subjectLabel: $section->name,
+                subjectId:    $section->id,
+                description:  auth()->user()->name . " renamed section: {$oldName} → {$section->name}",
+                oldValue:     $oldName,
+                newValue:     $section->name,
+                fieldChanged: 'name',
+            );
+        }
 
         return new TaskSectionResource($section);
     }
@@ -61,10 +90,21 @@ class TaskSectionController extends Controller
     {
         abort_if($section->project_id !== $project->id, 404);
 
-        $sectionId = $section->id;
+        $sectionName = $section->name;
+        $sectionId   = $section->id;
         $section->delete();
 
         broadcast(new SectionDeleted($sectionId, $project->id))->toOthers();
+
+        $this->activity->log(
+            projectId:    $project->id,
+            userId:       auth()->id(),
+            eventType:    'section.deleted',
+            subjectType:  'section',
+            subjectLabel: $sectionName,
+            subjectId:    null,
+            description:  auth()->user()->name . " deleted section {$sectionName}",
+        );
 
         return response()->json(['message' => 'Section deleted.']);
     }
