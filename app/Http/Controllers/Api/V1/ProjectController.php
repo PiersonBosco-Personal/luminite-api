@@ -14,6 +14,7 @@ use App\Models\Project;
 use App\Models\ProjectInvitation;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -32,17 +33,30 @@ class ProjectController extends Controller
 
     public function store(StoreProjectRequest $request)
     {
-        $project = Project::create([
-            'owner_id'    => $request->user()->id,
-            'name'        => $request->name,
-            'description' => $request->description,
-            'status'      => $request->status ?? 'active',
-        ]);
+        return DB::transaction(function () use ($request) {
+            $project = Project::create([
+                'owner_id'    => $request->user()->id,
+                'name'        => $request->name,
+                'description' => $request->description,
+                'status'      => $request->status ?? 'active',
+            ]);
 
-        // Owner is always a member
-        $project->members()->attach($request->user()->id, ['role' => 'owner']);
+            $project->members()->attach($request->user()->id, ['role' => 'owner']);
 
-        return new ProjectResource($project->load('owner'));
+            $defaultWorkTypes = [
+                'Development'   => 'blue',
+                'Testing'       => 'green',
+                'Design'        => 'purple',
+                'Meeting'       => 'amber',
+                'Documentation' => 'cyan',
+                'Other'         => 'slate',
+            ];
+            foreach ($defaultWorkTypes as $name => $color) {
+                $project->workTypes()->create(['name' => $name, 'color' => $color]);
+            }
+
+            return new ProjectResource($project->load('owner'));
+        });
     }
 
     public function show(Project $project)

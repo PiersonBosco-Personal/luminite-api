@@ -16,6 +16,8 @@ use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TaskSectionController;
 use App\Http\Controllers\Api\V1\TechStackController;
 use App\Http\Controllers\Api\V1\WidgetController;
+use App\Http\Controllers\Api\V1\TimeEntryController;
+use App\Http\Controllers\Api\V1\WorkTypeController;
 use App\Http\Controllers\Api\V1\McpProjectController;
 use App\Http\Controllers\Api\V1\McpTokenController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +38,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/user',    [AuthController::class, 'user']);
+
+        // User-scoped active timer (intentionally not project-scoped — see spec section 4)
+        Route::get('/user/active-timer', [TimeEntryController::class, 'activeTimer']);
 
         // Widget catalog (all active widget types)
         Route::get('/widgets', [WidgetController::class, 'index']);
@@ -139,6 +144,21 @@ Route::prefix('v1')->group(function () {
             Route::post('/projects/{project}/attachments',                                    [AttachmentController::class, 'storeForProject']);
             Route::post('/projects/{project}/tasks/{task}/attachments',                       [AttachmentController::class, 'storeForTask']);
             Route::post('/projects/{project}/notes/{note}/attachments',                       [AttachmentController::class, 'storeForNote']);
+
+            // Work Types
+            Route::get('/projects/{project}/work-types',                              [WorkTypeController::class, 'index']);
+            Route::post('/projects/{project}/work-types',                             [WorkTypeController::class, 'store']);
+            Route::put('/projects/{project}/work-types/{workType}',                   [WorkTypeController::class, 'update']);
+            Route::delete('/projects/{project}/work-types/{workType}',                [WorkTypeController::class, 'destroy']);
+
+            // Time Entries
+            Route::get('/projects/{project}/time-entries',                            [TimeEntryController::class, 'index']);
+            Route::post('/projects/{project}/time-entries',                           [TimeEntryController::class, 'store']);
+            Route::get('/projects/{project}/time-entries/report',                     [TimeEntryController::class, 'report']);
+            Route::post('/projects/{project}/time-entries/timer/start',               [TimeEntryController::class, 'startTimer']);
+            Route::post('/projects/{project}/time-entries/timer/stop',                [TimeEntryController::class, 'stopTimer']);
+            Route::put('/projects/{project}/time-entries/{timeEntry}',                [TimeEntryController::class, 'update']);
+            Route::delete('/projects/{project}/time-entries/{timeEntry}',             [TimeEntryController::class, 'destroy']);
         });
     });
 });

@@ -120,6 +120,28 @@ class WidgetSeeder extends Seeder
                 'min_w'       => 3,
                 'min_h'       => 3,
             ],
+            [
+                'slug'        => 'time_tracker',
+                'name'        => 'Time Tracker',
+                'category'    => 'productivity',
+                'description' => 'Start/stop timer and log time against project tasks.',
+                'icon'        => 'timer',
+                'default_w'   => 4,
+                'default_h'   => 7,
+                'min_w'       => 3,
+                'min_h'       => 5,
+            ],
+            [
+                'slug'        => 'time_report',
+                'name'        => 'Time Report',
+                'category'    => 'analytics',
+                'description' => 'Aggregated time spent by user, work type, or task.',
+                'icon'        => 'pie-chart',
+                'default_w'   => 6,
+                'default_h'   => 5,
+                'min_w'       => 4,
+                'min_h'       => 4,
+            ],
         ];
 
         foreach ($widgets as $widget) {
