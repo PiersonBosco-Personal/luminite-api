@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\McpController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AttachmentFolderController;
 use App\Http\Controllers\Api\V1\InvitationController;
@@ -16,7 +17,13 @@ use App\Http\Controllers\Api\V1\TechStackController;
 use App\Http\Controllers\Api\V1\WidgetController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
 use App\Http\Controllers\Api\V1\WorkTypeController;
+use App\Http\Controllers\Api\V1\McpProjectController;
+use App\Http\Controllers\Api\V1\McpTokenController;
 use Illuminate\Support\Facades\Route;
+
+// MCP — outside /v1, protected by its own token auth
+Route::post('/mcp', [McpController::class, 'handle'])
+    ->middleware(['mcp.auth', 'throttle:mcp']);
 
 Route::prefix('v1')->group(function () {
 
@@ -39,6 +46,11 @@ Route::prefix('v1')->group(function () {
 
         // Dashboard widget delete (not project-scoped — frontend calls without project context)
         Route::delete('/dashboard-widgets/{dashboardWidget}', [DashboardController::class, 'destroy']);
+
+        // MCP token management
+        Route::get('/mcp-tokens',               [McpTokenController::class, 'index']);
+        Route::post('/mcp-tokens',              [McpTokenController::class, 'store']);
+        Route::delete('/mcp-tokens/{mcpToken}', [McpTokenController::class, 'destroy']);
 
         // Attachments (auth only — not project-scoped)
         Route::get('/attachments/{attachment}',    [AttachmentController::class, 'show']);
@@ -108,6 +120,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/projects/{project}/dashboard-widgets',         [DashboardController::class, 'index']);
             Route::post('/projects/{project}/dashboard-widgets',        [DashboardController::class, 'store']);
             Route::post('/projects/{project}/dashboard-widgets/sync',   [DashboardController::class, 'sync']);
+
+            // MCP project stats + activity
+            Route::get('/projects/{project}/mcp/stats',    [McpProjectController::class, 'stats']);
+            Route::get('/projects/{project}/mcp/activity', [McpProjectController::class, 'activity']);
 
             // AI (stubs — Phase 4)
             Route::get('/projects/{project}/ai/conversations',    [AiController::class, 'index']);

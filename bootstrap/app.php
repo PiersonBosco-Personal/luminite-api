@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // statefulApi() removed — token auth only, no cookie/session on API routes
         $middleware->alias([
             'project.member' => \App\Http\Middleware\EnsureProjectMember::class,
+            'mcp.auth'       => \App\Http\Middleware\ValidateMcpToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
