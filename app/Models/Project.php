@@ -74,4 +74,14 @@ class Project extends Model
     {
         return $this->hasMany(DashboardWidget::class);
     }
+
+    public function workTypes()
+    {
+        return $this->hasMany(WorkType::class);
+    }
+
+    public function timeEntries()
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
 }
