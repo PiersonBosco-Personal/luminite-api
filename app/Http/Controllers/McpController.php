@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mcp\McpServer;
 use App\Mcp\Tools\GetProjectContext;
 use App\Mcp\Tools\GetLabels;
+use App\Mcp\Tools\GetOpenTasks;
 use App\Mcp\Tools\GetSections;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,7 @@ class McpController extends Controller
             new GetProjectContext(),
             new GetLabels(),
             new GetSections(),
+            new GetOpenTasks(),
         ]);
 
         $response = $server->handle($payload, $request);
