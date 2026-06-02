@@ -7,6 +7,7 @@ use App\Mcp\Tools\GetProjectContext;
 use App\Mcp\Tools\GetLabels;
 use App\Mcp\Tools\GetOpenTasks;
 use App\Mcp\Tools\GetSections;
+use App\Mcp\Tools\GetRecentActivity;
 use Illuminate\Http\Request;
 
 class McpController extends Controller
@@ -19,6 +20,7 @@ class McpController extends Controller
             new GetLabels(),
             new GetSections(),
             new GetOpenTasks(),
+            new GetRecentActivity(),
         ]);
 
         $response = $server->handle($payload, $request);
