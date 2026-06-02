@@ -168,3 +168,69 @@ it('get_labels does not return labels from other projects', function () {
 
     expect($text)->not->toContain('secret-label');
 });
+
+it('get_sections returns section names in order', function () {
+    [$raw, , $project] = mcpToken();
+
+    \App\Models\TaskSection::factory()->create([
+        'project_id' => $project->id,
+        'name'       => 'Backlog',
+        'position'   => 0,
+    ]);
+    \App\Models\TaskSection::factory()->create([
+        'project_id' => $project->id,
+        'name'       => 'In Progress',
+        'position'   => 1,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 20,
+            'params'  => ['name' => 'get_sections', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('Backlog')
+        ->and($text)->toContain('In Progress');
+});
+
+it('get_sections returns no-sections message when project has none', function () {
+    [$raw] = mcpToken();
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 21,
+            'params'  => ['name' => 'get_sections', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('No sections');
+});
+
+it('get_sections does not return sections from other projects', function () {
+    [$raw] = mcpToken();
+
+    $other = createProject(\App\Models\User::factory()->create());
+    \App\Models\TaskSection::factory()->create([
+        'project_id' => $other->id,
+        'name'       => 'secret-section',
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 22,
+            'params'  => ['name' => 'get_sections', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->not->toContain('secret-section');
+});
