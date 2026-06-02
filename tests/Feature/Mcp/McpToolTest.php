@@ -101,3 +101,70 @@ it('returns error for unknown tool name in tools/call', function () {
          ->assertStatus(200)
          ->assertJsonPath('error.code', -32601);
 });
+
+it('get_labels returns label names for the project', function () {
+    [$raw, , $project] = mcpToken();
+
+    \App\Models\Label::factory()->create([
+        'project_id' => $project->id,
+        'name'       => 'frontend',
+        'color'      => '#3b82f6',
+    ]);
+    \App\Models\Label::factory()->create([
+        'project_id' => $project->id,
+        'name'       => 'bug',
+        'color'      => '#ef4444',
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 10,
+            'params'  => ['name' => 'get_labels', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('frontend')
+        ->and($text)->toContain('bug');
+});
+
+it('get_labels returns no-labels message when project has none', function () {
+    [$raw] = mcpToken();
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 11,
+            'params'  => ['name' => 'get_labels', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('No labels');
+});
+
+it('get_labels does not return labels from other projects', function () {
+    [$raw] = mcpToken();
+
+    $otherUser    = \App\Models\User::factory()->create();
+    $otherProject = createProject($otherUser);
+    \App\Models\Label::factory()->create([
+        'project_id' => $otherProject->id,
+        'name'       => 'secret-label',
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 12,
+            'params'  => ['name' => 'get_labels', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->not->toContain('secret-label');
+});
