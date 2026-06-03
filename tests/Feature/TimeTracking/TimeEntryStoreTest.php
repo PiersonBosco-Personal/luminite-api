@@ -44,3 +44,18 @@ it('rejects a manual entry without duration_minutes', function () {
         'task_id' => $task->id,
     ])->assertStatus(422)->assertJsonValidationErrors('duration_minutes');
 });
+
+it('rejects a manual entry with a task_id from another project', function () {
+    $user         = actingAsUser();
+    $project      = createProject($user);
+    $otherProject = createProject($user);
+    $foreignTask  = Task::factory()->create([
+        'project_id' => $otherProject->id,
+        'created_by' => $user->id,
+    ]);
+
+    $this->postJson("/api/v1/projects/{$project->id}/time-entries", [
+        'task_id'          => $foreignTask->id,
+        'duration_minutes' => 30,
+    ])->assertStatus(422)->assertJsonValidationErrors('task_id');
+});
