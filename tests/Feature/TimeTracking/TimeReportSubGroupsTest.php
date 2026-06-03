@@ -159,15 +159,116 @@ it('returns sub_groups: null for group_by=work_type', function () {
     expect($groups[0]['sub_groups'])->toBeNull();
 });
 
-it('returns sub_groups: null for group_by=task', function () {
-    $task = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+it('includes sub_groups for each task when group_by=task', function () {
+    $task    = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    $dev     = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Development', 'color' => 'blue']);
+    $testing = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Testing', 'color' => 'green']);
+
     TimeEntry::factory()->create([
-        'project_id' => $this->project->id, 'user_id' => $this->owner->id,
-        'task_id' => $task->id, 'duration_minutes' => 60, 'logged_at' => '2026-05-15',
+        'project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id,
+        'work_type_id' => $dev->id, 'duration_minutes' => 120, 'logged_at' => '2026-05-15',
+    ]);
+    TimeEntry::factory()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id,
+        'work_type_id' => $testing->id, 'duration_minutes' => 60, 'logged_at' => '2026-05-15',
     ]);
 
     $groups = $this->getJson(reportUrl($this->project, ['group_by' => 'task']))->json('groups');
-    expect($groups[0]['sub_groups'])->toBeNull();
+    expect($groups)->toHaveCount(1);
+    expect($groups[0]['id'])->toBe($task->id);
+    expect($groups[0]['sub_groups'])->toHaveCount(2);
+});
+
+it('task sub_groups carry color slug and label from work_type', function () {
+    $task = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    $dev  = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Development', 'color' => 'blue']);
+    TimeEntry::factory()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id,
+        'work_type_id' => $dev->id, 'duration_minutes' => 60, 'logged_at' => '2026-05-15',
+    ]);
+
+    $sub = $this->getJson(reportUrl($this->project, ['group_by' => 'task']))->json('groups.0.sub_groups.0');
+    expect($sub['id'])->toBe($dev->id);
+    expect($sub['label'])->toBe('Development');
+    expect($sub['color'])->toBe('blue');
+    expect($sub['minutes'])->toBe(60);
+    expect($sub['percent'])->toBe(100);
+});
+
+it('task entries with null work_type appear as "No work type" sub-group', function () {
+    $task = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    TimeEntry::factory()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id,
+        'work_type_id' => null, 'duration_minutes' => 30, 'logged_at' => '2026-05-15',
+    ]);
+
+    $sub = $this->getJson(reportUrl($this->project, ['group_by' => 'task']))->json('groups.0.sub_groups.0');
+    expect($sub['id'])->toBeNull();
+    expect($sub['label'])->toBe('No work type');
+    expect($sub['color'])->toBeNull();
+});
+
+it('task sub_groups percentages are scoped to the task total', function () {
+    $taskA = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    $taskB = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    $dev   = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Development', 'color' => 'blue']);
+
+    TimeEntry::factory()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $taskA->id,
+        'work_type_id' => $dev->id, 'duration_minutes' => 60, 'logged_at' => '2026-05-15',
+    ]);
+    TimeEntry::factory()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $taskB->id,
+        'work_type_id' => $dev->id, 'duration_minutes' => 180, 'logged_at' => '2026-05-15',
+    ]);
+
+    $groups = $this->getJson(reportUrl($this->project, ['group_by' => 'task']))->json('groups');
+    $aGroup = collect($groups)->firstWhere('id', $taskA->id);
+    expect($aGroup['sub_groups'][0]['percent'])->toBe(100);
+});
+
+it('task sub_groups are ordered by minutes desc, label asc on ties', function () {
+    $task = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    $a = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Alpha',   'color' => 'blue']);
+    $b = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Bravo',   'color' => 'green']);
+    $c = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Charlie', 'color' => 'red']);
+
+    TimeEntry::factory()->create(['project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id, 'work_type_id' => $a->id, 'duration_minutes' => 30, 'logged_at' => '2026-05-15']);
+    TimeEntry::factory()->create(['project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id, 'work_type_id' => $b->id, 'duration_minutes' => 30, 'logged_at' => '2026-05-15']);
+    TimeEntry::factory()->create(['project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id, 'work_type_id' => $c->id, 'duration_minutes' => 60, 'logged_at' => '2026-05-15']);
+
+    $subs = $this->getJson(reportUrl($this->project, ['group_by' => 'task']))->json('groups.0.sub_groups');
+    expect($subs[0]['label'])->toBe('Charlie');
+    expect($subs[1]['label'])->toBe('Alpha');
+    expect($subs[2]['label'])->toBe('Bravo');
+});
+
+it('excludes running timers from task sub_groups', function () {
+    $task = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    $dev  = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Development', 'color' => 'blue']);
+    TimeEntry::factory()->create(['project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id, 'work_type_id' => $dev->id, 'duration_minutes' => 60, 'logged_at' => '2026-05-15']);
+    TimeEntry::factory()->create(['project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id, 'work_type_id' => $dev->id, 'duration_minutes' => null, 'started_at' => '2026-05-15 10:00:00', 'logged_at' => '2026-05-15']);
+
+    $subs = $this->getJson(reportUrl($this->project, ['group_by' => 'task']))->json('groups.0.sub_groups');
+    expect($subs)->toHaveCount(1);
+    expect($subs[0]['minutes'])->toBe(60);
+});
+
+it('task sub_groups include a deleted-task bucket with its breakdown', function () {
+    $task = Task::factory()->create(['project_id' => $this->project->id, 'created_by' => $this->owner->id]);
+    $dev  = WorkType::factory()->create(['project_id' => $this->project->id, 'name' => 'Development', 'color' => 'blue']);
+    TimeEntry::factory()->create([
+        'project_id' => $this->project->id, 'user_id' => $this->owner->id, 'task_id' => $task->id,
+        'work_type_id' => $dev->id, 'duration_minutes' => 60, 'logged_at' => '2026-05-15',
+    ]);
+    $task->delete(); // time_entries.task_id is ON DELETE SET NULL → folds into a "Deleted task" group
+
+    $groups  = $this->getJson(reportUrl($this->project, ['group_by' => 'task']))->json('groups');
+    $deleted = collect($groups)->first(fn ($g) => $g['id'] === null);
+    expect($deleted)->not->toBeNull();
+    expect($deleted['label'])->toBe('Deleted task');
+    expect($deleted['sub_groups'])->toHaveCount(1);
+    expect($deleted['sub_groups'][0]['label'])->toBe('Development');
 });
 
 it('returns valid shape when no entries match', function () {
