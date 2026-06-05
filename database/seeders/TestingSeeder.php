@@ -38,7 +38,7 @@ class TestingSeeder extends Seeder
 
                 4. Real-time collaboration — Small teams see each other's presence, task updates, and note edits in real time via WebSockets (Laravel Reverb). No page refreshes, no stale state.
 
-                5. Desktop-first distribution — Luminite ships as a downloadable Electron app for Mac and Windows. Users download it once; it connects to infrastructure we own and operate. Users never run a database or backend themselves. This gives us full control over the stack while keeping the install experience simple.
+                5. Desktop-first distribution — Luminite ships as a downloadable PWA app. Users download it once; it connects to infrastructure we own and operate. Users never run a database or backend themselves. This gives us full control over the stack while keeping the install experience simple.
 
                 6. Developer-specific features — Tech stack registry (version-tracked), architecture notes per project, attachment storage with folder trees, rich text notes with task linking, and a customizable widget dashboard that surfaces the information most relevant to each team member.
             EOT;
@@ -51,7 +51,7 @@ class TestingSeeder extends Seeder
 
                 - luminite-api/ — Laravel 11 REST API (PHP 8.3). Runs in Docker via Laravel Sail locally. Deployed to DigitalOcean via Laravel Forge in staging and production. This is the only process that talks to the database.
                 - luminite-web-app/ — React 18 + TypeScript frontend. Vite dev server locally. Communicates with the API exclusively via HTTP and WebSockets. No server-side rendering. No Inertia.js.
-                - luminite-electron/ — Electron shell (not yet built). Wraps the React frontend in a BrowserWindow. Electron main process handles app lifecycle, IPC, token storage via safeStorage, menus, and auto-updates. Does NOT bundle Laravel.
+                - luminite-docs/ — Markdown documentation, design assets, and product collateral. Published as a public repo and website to showcase the project vision and technical approach.
 
                 Laravel and React are fully decoupled. They never share code. Communication is HTTP API calls and WebSocket connections only.
 
@@ -74,8 +74,6 @@ class TestingSeeder extends Seeder
                 **Database split:** MySQL is the primary database for all relational data. PostgreSQL + pgvector is added only for AI vector embeddings and runs as a separate connection. Do not conflate the two.
 
                 **Queue/Jobs:** Laravel Queues backed by Redis. Used for AI processing jobs and async tasks like file deletion. Never run AI inference synchronously in a request.
-
-                **Electron security model:** contextIsolation ON, nodeIntegration OFF — always. The renderer process (React) has no direct Node.js access. All privileged operations go through the IPC bridge via preload.js.
 
                 **UI:** Shadcn/ui + Tailwind CSS. Custom components are preferred. Do not introduce MUI, Chakra, or other component libraries.
 
@@ -102,7 +100,7 @@ class TestingSeeder extends Seeder
         $luminite = Project::create([
             'owner_id'           => $owner->id,
             'name'               => 'Luminite',
-            'description'        => 'Luminite is a downloadable desktop application for small web development teams. It is a monorepo project combining a Laravel REST API (luminite-api), a React + TypeScript frontend (luminite-web-app), and a planned Electron shell (luminite-electron). The platform unifies kanban task management, rich notetaking, customizable dashboards, real-time collaboration, and AI-powered project assistance into a single tool built specifically for developer workflows.',
+            'description'        => 'Luminite is a downloadable desktop application for small web development teams. It is a monorepo project combining a Laravel REST API (luminite-api), a React + TypeScript frontend (luminite-web-app), and a planned PWA download through a frontend webstie. The platform unifies kanban task management, rich notetaking, customizable dashboards, real-time collaboration, and AI-powered project assistance into a single tool built specifically for developer workflows.',
             'status'             => 'active',
             'goals'              => $goals,
             'architecture_notes' => $architectureNotes,
@@ -129,6 +127,7 @@ class TestingSeeder extends Seeder
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'DigitalOcean',    'version' => null,    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Laravel Forge',   'version' => null,    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'GitHub Actions',  'version' => null,    'created_at' => now(), 'updated_at' => now()],
+
         ]);
 
         $featureLabel  = Label::create(['project_id' => $luminite->id, 'name' => 'Feature',     'color' => '#6366f1']);

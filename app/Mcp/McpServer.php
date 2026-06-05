@@ -4,6 +4,7 @@ namespace App\Mcp;
 
 use App\Mcp\Tools\Tool;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class McpServer
 {
@@ -60,10 +61,40 @@ class McpServer
         $tool = collect($this->tools)->first(fn(Tool $t) => $t->definition()['name'] === $name);
 
         if (! $tool) {
+            Log::warning('MCP tool not found', [
+                'tool'       => $name,
+                'user_id'    => $request->attributes->get('mcp_user_id'),
+                'project_id' => $request->attributes->get('mcp_project_id'),
+            ]);
+
             return $this->error($id, -32601, "Tool not found: {$name}");
         }
 
-        $text = $tool->run($args, $request);
+        $context = [
+            'tool'       => $name,
+            'user_id'    => $request->attributes->get('mcp_user_id'),
+            'project_id' => $request->attributes->get('mcp_project_id'),
+            'args'       => $args,
+        ];
+
+        Log::info('MCP tool called', $context);
+
+        $start = microtime(true);
+
+        try {
+            $text = $tool->run($args, $request);
+        } catch (\Throwable $e) {
+            Log::error('MCP tool failed', $context + [
+                'duration_ms' => round((microtime(true) - $start) * 1000, 1),
+                'exception'   => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+
+        Log::info('MCP tool completed', $context + [
+            'duration_ms' => round((microtime(true) - $start) * 1000, 1),
+        ]);
 
         return [
             'jsonrpc' => '2.0',
