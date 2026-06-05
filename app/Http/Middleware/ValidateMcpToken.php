@@ -30,6 +30,8 @@ class ValidateMcpToken
 
         $request->attributes->set('mcp_user_id', $token->user_id);
         $request->attributes->set('mcp_project_id', $token->project_id);
+        $request->attributes->set('mcp_token_id', $token->id);
+        $request->attributes->set('mcp_scopes', $token->scopes ?? []);
 
         return $next($request);
     }

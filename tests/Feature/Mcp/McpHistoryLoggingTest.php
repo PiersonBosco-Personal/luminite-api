@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\McpHistory;
+use App\Models\McpToken;
 use App\Models\Project;
 use App\Models\User;
 
@@ -24,4 +25,27 @@ it('persists an mcp_history row with arguments cast to array and no updated_at',
         ->and($row->status)->toBe('success')
         ->and($row->created_at)->not->toBeNull()
         ->and($row->updated_at)->toBeNull();
+});
+
+it('writes an mcp_history row when any tool is called', function () {
+    [$raw, $token, $project] = mcpToken();
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 1,
+            'params'  => ['name' => 'get_open_tasks', 'arguments' => []],
+        ])
+        ->assertStatus(200);
+
+    $row = McpHistory::where('project_id', $project->id)->first();
+
+    expect($row)->not->toBeNull()
+        ->and($row->tool)->toBe('get_open_tasks')
+        ->and($row->status)->toBe('success')
+        ->and($row->mcp_token_id)->toBe($token->id)
+        ->and($row->user_id)->toBe($token->user_id)
+        ->and($row->duration_ms)->toBeGreaterThanOrEqual(0)
+        ->and($row->result_summary)->not->toBeNull();
 });

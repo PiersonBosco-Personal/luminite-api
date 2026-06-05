@@ -3,6 +3,7 @@
 namespace App\Mcp;
 
 use App\Mcp\Tools\Tool;
+use App\Models\McpHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -84,17 +85,23 @@ class McpServer
         try {
             $text = $tool->run($args, $request);
         } catch (\Throwable $e) {
+            $duration = (int) round((microtime(true) - $start) * 1000);
+
             Log::error('MCP tool failed', $context + [
-                'duration_ms' => round((microtime(true) - $start) * 1000, 1),
+                'duration_ms' => $duration,
                 'exception'   => $e->getMessage(),
             ]);
 
-            throw $e;
+            $this->recordHistory($request, $name, $args, 'error', $duration, null, $e->getMessage());
+
+            return $this->error($id, -32603, $e->getMessage());
         }
 
-        Log::info('MCP tool completed', $context + [
-            'duration_ms' => round((microtime(true) - $start) * 1000, 1),
-        ]);
+        $duration = (int) round((microtime(true) - $start) * 1000);
+
+        Log::info('MCP tool completed', $context + ['duration_ms' => $duration]);
+
+        $this->recordHistory($request, $name, $args, 'success', $duration, $this->summarize($text), null);
 
         return [
             'jsonrpc' => '2.0',
@@ -112,5 +119,36 @@ class McpServer
             'id'      => $id,
             'error'   => ['code' => $code, 'message' => $message],
         ];
+    }
+
+    private function recordHistory(
+        Request $request,
+        string  $tool,
+        array   $args,
+        string  $status,
+        ?int    $durationMs,
+        ?string $summary,
+        ?string $error,
+    ): void {
+        McpHistory::create([
+            'mcp_token_id'   => $request->attributes->get('mcp_token_id'),
+            'user_id'        => $request->attributes->get('mcp_user_id'),
+            'project_id'     => $request->attributes->get('mcp_project_id'),
+            'tool'           => $tool,
+            'arguments'      => $args ?: null,
+            'status'         => $status,
+            'duration_ms'    => $durationMs,
+            'result_summary' => $summary,
+            'error_message'  => $error,
+        ]);
+    }
+
+    private function summarize(string $text): ?string
+    {
+        $line = strtok($text, "\n");
+        if ($line === false) {
+            return null;
+        }
+        return mb_substr(trim($line), 0, 160);
     }
 }
