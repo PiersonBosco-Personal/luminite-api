@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\McpHistoryResource;
+use App\Models\McpHistory;
 use App\Models\McpToken;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class McpProjectController extends Controller
 {
@@ -28,8 +31,18 @@ class McpProjectController extends Controller
         ]]);
     }
 
-    public function activity(Project $project): JsonResponse
+    public function activity(Request $request, Project $project): JsonResponse
     {
-        return response()->json(['data' => []]);
+        $query = McpHistory::where('project_id', $project->id)
+            ->with('user')
+            ->orderByDesc('created_at');
+
+        if ($userId = $request->query('user_id')) {
+            $query->where('user_id', $userId);
+        }
+
+        $rows = $query->limit(100)->get();
+
+        return response()->json(['data' => McpHistoryResource::collection($rows)]);
     }
 }
