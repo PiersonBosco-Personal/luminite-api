@@ -8,6 +8,7 @@ use App\Models\Task;
 use App\Services\ActivityLogService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SyncTodos extends Tool
 {
@@ -77,19 +78,21 @@ class SyncTodos extends Tool
                 continue;
             }
 
-            $position = (Task::where('project_id', $projectId)->where('section_id', $sectionId)->max('position') ?? -1) + 1;
-
             try {
-                $task = Task::create([
-                    'project_id'  => $projectId,
-                    'section_id'  => $sectionId,
-                    'created_by'  => $userId,
-                    'title'       => $text,
-                    'status'      => 'todo',
-                    'priority'    => 'medium',
-                    'position'    => $position,
-                    'source_hash' => $hash,
-                ]);
+                $task = DB::transaction(function () use ($projectId, $sectionId, $userId, $text, $hash) {
+                    $position = (Task::where('project_id', $projectId)->where('section_id', $sectionId)->max('position') ?? -1) + 1;
+
+                    return Task::create([
+                        'project_id'  => $projectId,
+                        'section_id'  => $sectionId,
+                        'created_by'  => $userId,
+                        'title'       => $text,
+                        'status'      => 'todo',
+                        'priority'    => 'medium',
+                        'position'    => $position,
+                        'source_hash' => $hash,
+                    ]);
+                });
             } catch (QueryException $e) {
                 // Lost a race on the unique(project_id, source_hash) constraint.
                 $skipped++;

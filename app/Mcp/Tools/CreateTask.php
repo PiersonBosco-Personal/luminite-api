@@ -58,10 +58,10 @@ class CreateTask extends Tool
             ? $args['priority']
             : 'medium';
 
-        $task = DB::transaction(function () use ($projectId, $sectionId, $userId, $title, $args, $priority) {
+        $task = DB::transaction(function () use ($projectId, $sectionId, $userId, $title, $args, $priority, $labelIds) {
             $position = (Task::where('project_id', $projectId)->where('section_id', $sectionId)->max('position') ?? -1) + 1;
 
-            return Task::create([
+            $task = Task::create([
                 'project_id'  => $projectId,
                 'section_id'  => $sectionId,
                 'created_by'  => $userId,
@@ -71,11 +71,13 @@ class CreateTask extends Tool
                 'priority'    => $priority,
                 'position'    => $position,
             ]);
-        });
 
-        if ($labelIds) {
-            $task->labels()->sync($labelIds);
-        }
+            if ($labelIds) {
+                $task->labels()->sync($labelIds);
+            }
+
+            return $task;
+        });
 
         $task->load('assignee', 'labels');
 

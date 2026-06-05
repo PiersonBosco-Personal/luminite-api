@@ -55,8 +55,8 @@ class McpProjectController extends Controller
             ->with('user')
             ->orderByDesc('created_at');
 
-        if ($userId = $request->query('user_id')) {
-            $query->where('user_id', $userId);
+        if (is_numeric($userId = $request->query('user_id'))) {
+            $query->where('user_id', (int) $userId);
         }
 
         $rows = $query->limit(100)->get();

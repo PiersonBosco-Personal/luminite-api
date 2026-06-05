@@ -20,7 +20,7 @@ class LogSessionActivity extends Tool
                 'type'       => 'object',
                 'properties' => [
                     'summary'         => ['type' => 'string'],
-                    'files_changed'   => ['type' => ['array', 'integer'], 'items' => ['type' => 'string']],
+                    'files_changed'   => ['type' => 'array', 'items' => ['type' => 'string']],
                     'tasks_completed' => ['type' => 'array', 'items' => ['type' => 'integer']],
                 ],
                 'required' => ['summary'],

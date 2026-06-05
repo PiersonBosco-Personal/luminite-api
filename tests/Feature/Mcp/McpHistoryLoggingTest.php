@@ -49,3 +49,21 @@ it('writes an mcp_history row when any tool is called', function () {
         ->and($row->duration_ms)->toBeGreaterThanOrEqual(0)
         ->and($row->result_summary)->not->toBeNull();
 });
+
+it('writes an mcp_history error row when an unknown tool is called', function () {
+    [$raw, , $project] = mcpToken();
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 9,
+            'params'  => ['name' => 'does_not_exist', 'arguments' => []],
+        ])
+        ->assertStatus(200);
+
+    $row = McpHistory::where('project_id', $project->id)->where('tool', 'does_not_exist')->first();
+    expect($row)->not->toBeNull()
+        ->and($row->status)->toBe('error')
+        ->and($row->error_message)->toContain('not found');
+});

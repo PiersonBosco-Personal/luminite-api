@@ -68,6 +68,8 @@ class McpServer
                 'project_id' => $request->attributes->get('mcp_project_id'),
             ]);
 
+            $this->recordHistory($request, $name, $args, 'error', null, null, "tool not found: {$name}");
+
             return $this->error($id, -32601, "Tool not found: {$name}");
         }
 
@@ -103,7 +105,7 @@ class McpServer
 
             $this->recordHistory($request, $name, $args, 'error', $duration, null, $e->getMessage());
 
-            return $this->error($id, -32603, $e->getMessage());
+            return $this->error($id, -32603, 'Internal error');
         }
 
         $duration = (int) round((microtime(true) - $start) * 1000);
@@ -154,10 +156,9 @@ class McpServer
 
     private function summarize(string $text): ?string
     {
-        $line = strtok($text, "\n");
-        if ($line === false) {
-            return null;
-        }
-        return mb_substr(trim($line), 0, 160);
+        $line = explode("\n", $text, 2)[0];
+        $line = trim($line);
+
+        return $line === '' ? null : mb_substr($line, 0, 160);
     }
 }
