@@ -36,6 +36,131 @@ it('complete_task marks a task done and logs notes via mcp', function () {
         ->and($log->description)->toContain('verified on staging');
 });
 
+function completeTaskCall($test, string $raw, array $arguments): string
+{
+    return $test->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 1,
+            'params'  => ['name' => 'complete_task', 'arguments' => $arguments],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+}
+
+it('complete_task moves the task to the Done section by default', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $done    = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Done', 'position' => 1]);
+    $settled = Task::factory()->create(['project_id' => $project->id, 'section_id' => $done->id, 'position' => 0]);
+    $task    = Task::factory()->create([
+        'project_id' => $project->id,
+        'section_id' => $backlog->id,
+        'status'     => 'todo',
+        'position'   => 0,
+    ]);
+
+    $text = completeTaskCall($this, $raw, ['task_id' => $task->id]);
+
+    expect($text)->toContain('Completed task')
+        ->and($task->fresh()->status)->toBe('done')
+        ->and($task->fresh()->section_id)->toBe($done->id)
+        ->and($task->fresh()->position)->toBe($settled->position + 1);
+});
+
+it('complete_task matches the Done section case-insensitively', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $done    = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'DONE', 'position' => 1]);
+    $task    = Task::factory()->create(['project_id' => $project->id, 'section_id' => $backlog->id, 'status' => 'todo']);
+
+    completeTaskCall($this, $raw, ['task_id' => $task->id]);
+
+    expect($task->fresh()->section_id)->toBe($done->id);
+});
+
+it('complete_task moves the task to an explicit section by name', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog  = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $shipped  = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Shipped', 'position' => 1]);
+    TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Done', 'position' => 2]);
+    $task = Task::factory()->create(['project_id' => $project->id, 'section_id' => $backlog->id, 'status' => 'todo']);
+
+    $text = completeTaskCall($this, $raw, ['task_id' => $task->id, 'section' => 'shipped']);
+
+    expect($text)->toContain('Completed task')
+        ->and($task->fresh()->status)->toBe('done')
+        ->and($task->fresh()->section_id)->toBe($shipped->id);
+});
+
+it('complete_task moves the task to an explicit section by id', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $archive = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Archive', 'position' => 1]);
+    $task = Task::factory()->create(['project_id' => $project->id, 'section_id' => $backlog->id, 'status' => 'todo']);
+
+    completeTaskCall($this, $raw, ['task_id' => $task->id, 'section' => $archive->id]);
+
+    expect($task->fresh()->section_id)->toBe($archive->id)
+        ->and($task->fresh()->status)->toBe('done');
+});
+
+it('complete_task still completes and asks where to move when no Done section exists', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog  = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $progress = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'In Progress', 'position' => 1]);
+    $task = Task::factory()->create(['project_id' => $project->id, 'section_id' => $backlog->id, 'status' => 'todo']);
+
+    $text = completeTaskCall($this, $raw, ['task_id' => $task->id]);
+
+    expect($text)->toContain('Completed task')
+        ->and($text)->toContain('no "Done" section')
+        ->and($text)->toContain('Ask the user')
+        ->and($text)->toContain("[{$backlog->id}] Backlog")
+        ->and($text)->toContain("[{$progress->id}] In Progress")
+        ->and($task->fresh()->status)->toBe('done')
+        ->and($task->fresh()->section_id)->toBe($backlog->id);
+});
+
+it('complete_task rejects an unknown section without changing the task', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $task = Task::factory()->create(['project_id' => $project->id, 'section_id' => $backlog->id, 'status' => 'todo']);
+
+    $text = completeTaskCall($this, $raw, ['task_id' => $task->id, 'section' => 'Nonexistent']);
+
+    expect($text)->toContain('Error')
+        ->and($text)->toContain("[{$backlog->id}] Backlog")
+        ->and($task->fresh()->status)->toBe('todo')
+        ->and($task->fresh()->section_id)->toBe($backlog->id);
+});
+
+it('complete_task rejects a section id from another project', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $foreign = TaskSection::factory()->create(['name' => 'Done', 'position' => 0]);
+    $task = Task::factory()->create(['project_id' => $project->id, 'section_id' => $backlog->id, 'status' => 'todo']);
+
+    $text = completeTaskCall($this, $raw, ['task_id' => $task->id, 'section' => $foreign->id]);
+
+    expect($text)->toContain('Error')
+        ->and($task->fresh()->status)->toBe('todo')
+        ->and($task->fresh()->section_id)->toBe($backlog->id);
+});
+
+it('complete_task moves an already-done task on a follow-up call', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $shipped = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Shipped', 'position' => 1]);
+    $task = Task::factory()->create(['project_id' => $project->id, 'section_id' => $backlog->id, 'status' => 'done']);
+
+    $text = completeTaskCall($this, $raw, ['task_id' => $task->id, 'section' => 'Shipped']);
+
+    expect($text)->toContain('Completed task')
+        ->and($task->fresh()->section_id)->toBe($shipped->id);
+});
+
 it('complete_task rejects a task from another project', function () {
     [$raw] = mcpToken([], ['read', 'write']);
     $otherSection = TaskSection::factory()->create(['position' => 0]);
