@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\ProjectInvitation;
 use App\Models\User;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 
 class InvitationController extends Controller
 {
+    public function __construct(private ActivityLogService $activity) {}
+
     public function show(string $token)
     {
         $invitation = ProjectInvitation::pending()
@@ -60,6 +63,16 @@ class InvitationController extends Controller
         $invitation->project->members()->attach($user->id, ['role' => 'member']);
 
         $invitation->update(['accepted_at' => now()]);
+
+        $this->activity->log(
+            projectId:    $invitation->project->id,
+            userId:       $user->id,
+            eventType:    'project.member_joined',
+            subjectType:  'user',
+            subjectLabel: $user->name,
+            subjectId:    $user->id,
+            description:  "{$user->name} accepted an invitation and joined the project",
+        );
 
         $authToken = $user->createToken('luminite-app')->plainTextToken;
 

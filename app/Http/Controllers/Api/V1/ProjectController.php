@@ -13,6 +13,7 @@ use App\Mail\ProjectInvitationMail;
 use App\Models\Project;
 use App\Models\ProjectInvitation;
 use App\Models\User;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -20,6 +21,8 @@ use Illuminate\Support\Str;
 
 class ProjectController extends Controller
 {
+    public function __construct(private ActivityLogService $activity) {}
+
     public function index(Request $request)
     {
         $projects = $request->user()
@@ -55,6 +58,16 @@ class ProjectController extends Controller
                 $project->workTypes()->create(['name' => $name, 'color' => $color]);
             }
 
+            $this->activity->log(
+                projectId:    $project->id,
+                userId:       $request->user()->id,
+                eventType:    'project.created',
+                subjectType:  'project',
+                subjectLabel: $project->name,
+                subjectId:    $project->id,
+                description:  $request->user()->name . " created project {$project->name}",
+            );
+
             return new ProjectResource($project->load('owner'));
         });
     }
@@ -70,8 +83,28 @@ class ProjectController extends Controller
     {
         $this->authorize('update', $project);
 
+        $original = $project->only(array_keys($request->validated()));
         $project->update($request->validated());
         $project->load('owner');
+
+        foreach ($project->getChanges() as $field => $newValue) {
+            if ($field === 'updated_at') {
+                continue;
+            }
+
+            $this->activity->log(
+                projectId:    $project->id,
+                userId:       $request->user()->id,
+                eventType:    'project.updated',
+                subjectType:  'project',
+                subjectLabel: $project->name,
+                subjectId:    $project->id,
+                description:  $request->user()->name . " updated project {$field}",
+                oldValue:     (string) ($original[$field] ?? ''),
+                newValue:     (string) $newValue,
+                fieldChanged: $field,
+            );
+        }
 
         broadcast(new ProjectUpdated($project, $project->id))->toOthers();
 
@@ -113,6 +146,16 @@ class ProjectController extends Controller
 
             $project->members()->attach($user->id, ['role' => $request->role ?? 'member']);
 
+            $this->activity->log(
+                projectId:    $project->id,
+                userId:       $request->user()->id,
+                eventType:    'project.member_added',
+                subjectType:  'user',
+                subjectLabel: $user->name,
+                subjectId:    $user->id,
+                description:  $request->user()->name . " added {$user->name} to the project",
+            );
+
             return new UserResource($user);
         }
 
@@ -138,6 +181,16 @@ class ProjectController extends Controller
 
         Mail::to($request->email)->send(new ProjectInvitationMail($invitation));
 
+        $this->activity->log(
+            projectId:    $project->id,
+            userId:       $request->user()->id,
+            eventType:    'project.member_invited',
+            subjectType:  'invitation',
+            subjectLabel: $invitation->email,
+            subjectId:    $invitation->id,
+            description:  $request->user()->name . " invited {$invitation->email} to the project",
+        );
+
         return response()->json(['message' => 'Invitation sent.'], 202);
     }
 
@@ -150,6 +203,16 @@ class ProjectController extends Controller
         }
 
         $project->members()->detach($user->id);
+
+        $this->activity->log(
+            projectId:    $project->id,
+            userId:       $request->user()->id,
+            eventType:    'project.member_removed',
+            subjectType:  'user',
+            subjectLabel: $user->name,
+            subjectId:    $user->id,
+            description:  $request->user()->name . " removed {$user->name} from the project",
+        );
 
         return response()->json(['message' => 'Member removed.']);
     }
