@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\Label;
 use App\Models\Task;
 use App\Models\TaskSection;
 use App\Models\TechStack;
@@ -117,4 +118,28 @@ it('get_session_context is listed in tools/list', function () {
         ->json('result.tools');
 
     expect(collect($tools)->pluck('name'))->toContain('get_session_context');
+});
+
+it('get_session_context lists sections and labels with ids', function () {
+    [$raw, , $project] = mcpToken();
+    TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'In Progress', 'position' => 1]);
+    Label::factory()->create(['project_id' => $project->id, 'name' => 'bug', 'color' => '#ef4444']);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 1,
+            'params'  => ['name' => 'get_session_context', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('Sections:')
+        ->and($text)->toContain('Backlog')
+        ->and($text)->toContain('In Progress')
+        ->and($text)->toContain('Labels:')
+        ->and($text)->toContain('bug')
+        ->and($text)->toContain('#ef4444');
 });

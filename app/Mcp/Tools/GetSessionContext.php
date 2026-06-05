@@ -3,8 +3,10 @@
 namespace App\Mcp\Tools;
 
 use App\Models\ActivityLog;
+use App\Models\Label;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskSection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -69,6 +71,27 @@ class GetSessionContext extends Tool
                     }
                     $lines[] = $childEntry;
                 }
+            }
+        }
+
+        // Sections (with ids — so Claude can target them in write tools)
+        $sections = TaskSection::where('project_id', $projectId)->orderBy('position')->get(['id', 'name']);
+        if ($sections->isNotEmpty()) {
+            $lines[] = '';
+            $lines[] = 'Sections:';
+            foreach ($sections as $section) {
+                $lines[] = "- [{$section->id}] {$section->name}";
+            }
+        }
+
+        // Labels (with ids + color)
+        $labels = Label::where('project_id', $projectId)->orderBy('name')->get(['id', 'name', 'color']);
+        if ($labels->isNotEmpty()) {
+            $lines[] = '';
+            $lines[] = 'Labels:';
+            foreach ($labels as $label) {
+                $color = $label->color ? " ({$label->color})" : '';
+                $lines[] = "- [{$label->id}] {$label->name}{$color}";
             }
         }
 
