@@ -17,12 +17,14 @@ services:
             XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
             XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
+            REVERB_HOST: reverb # inside Docker, Reverb is reachable via its service name, not localhost
         volumes:
             - '.:/var/www/html'
         networks:
             - sail
         depends_on:
-            - mysql
+            mysql:
+                condition: service_healthy
     reverb:
         build:
             context: './vendor/laravel/sail/runtimes/8.5'
@@ -43,7 +45,8 @@ services:
         networks:
             - sail
         depends_on:
-            - mysql
+            mysql:
+                condition: service_healthy # Reverb crashes at boot if MySQL isn't ready yet
     queue:
         build:
             context: './vendor/laravel/sail/runtimes/8.5'
@@ -57,12 +60,14 @@ services:
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
+            REVERB_HOST: reverb # inside Docker, Reverb is reachable via its service name, not localhost
         volumes:
             - '.:/var/www/html'
         networks:
             - sail
         depends_on:
-            - mysql
+            mysql:
+                condition: service_healthy
     mysql:
         image: 'mysql:8.4'
         ports:
