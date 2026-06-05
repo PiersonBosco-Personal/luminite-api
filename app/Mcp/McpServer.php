@@ -71,6 +71,15 @@ class McpServer
             return $this->error($id, -32601, "Tool not found: {$name}");
         }
 
+        $scopes = $request->attributes->get('mcp_scopes', []);
+
+        if (! in_array($tool->requiredScope(), $scopes, true)) {
+            $message = "This token lacks the '{$tool->requiredScope()}' scope";
+            $this->recordHistory($request, $name, $args, 'error', null, null, "denied: {$message}");
+
+            return $this->error($id, -32603, $message);
+        }
+
         $context = [
             'tool'       => $name,
             'user_id'    => $request->attributes->get('mcp_user_id'),

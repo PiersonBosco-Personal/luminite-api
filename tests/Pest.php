@@ -82,10 +82,10 @@ function seedWidgets(): void
 /**
  * Create a user, project, and MCP token. Returns [$rawToken, $mcpToken, $project, $user].
  */
-function mcpToken(array $projectOverrides = []): array
+function mcpToken(array $projectOverrides = [], array $scopes = ['read']): array
 {
     $user    = User::factory()->create();
     $project = createProject($user, $projectOverrides);
-    [$token, $raw] = \App\Models\McpToken::generate($user, $project, 'test-token', ['read']);
+    [$token, $raw] = \App\Models\McpToken::generate($user, $project, 'test-token', $scopes);
     return [$raw, $token, $project, $user];
 }
