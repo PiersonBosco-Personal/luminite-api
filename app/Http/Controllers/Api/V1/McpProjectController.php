@@ -14,20 +14,38 @@ class McpProjectController extends Controller
 {
     public function stats(Project $project): JsonResponse
     {
-        $tokens = McpToken::where('project_id', $project->id)->get();
-
+        $tokens       = McpToken::where('project_id', $project->id)->get();
         $activeTokens = $tokens->filter(fn ($t) => ! $t->isExpired())->count();
-        $totalTokens  = $tokens->count();
-        $lastUsedAt   = $tokens->max('last_used_at');
+
+        $now       = now();
+        $weekStart = $now->copy()->subDays(7);
+        $prevStart = $now->copy()->subDays(14);
+
+        $base = McpHistory::where('project_id', $project->id);
+
+        $thisWeek = (clone $base)->where('created_at', '>=', $weekStart)->count();
+        $lastWeek = (clone $base)->whereBetween('created_at', [$prevStart, $weekStart])->count();
+        $errors   = (clone $base)->where('created_at', '>=', $weekStart)->where('status', 'error')->count();
+        $avgMs    = (clone $base)->where('created_at', '>=', $weekStart)->avg('duration_ms');
+
+        $tasksCompleted = (clone $base)
+            ->where('created_at', '>=', $weekStart)
+            ->where('tool', 'complete_task')
+            ->where('status', 'success')
+            ->count();
+
+        $latest = (clone $base)->with('user')->orderByDesc('created_at')->first();
 
         return response()->json(['data' => [
-            'requests_this_week'      => 0,
-            'requests_last_week'      => 0,
-            'active_tokens'           => $activeTokens,
-            'total_tokens'            => $totalTokens,
-            'last_activity_at'        => $lastUsedAt,
-            'last_activity_user'      => null,
-            'tasks_completed_this_week' => 0,
+            'requests_this_week'        => $thisWeek,
+            'requests_last_week'        => $lastWeek,
+            'active_tokens'             => $activeTokens,
+            'total_tokens'              => $tokens->count(),
+            'last_activity_at'          => $latest?->created_at,
+            'last_activity_user'        => $latest?->user?->name,
+            'tasks_completed_this_week' => $tasksCompleted,
+            'error_rate'                => $thisWeek > 0 ? round($errors / $thisWeek, 3) : 0,
+            'avg_duration_ms'           => $avgMs !== null ? (int) round($avgMs) : null,
         ]]);
     }
 
