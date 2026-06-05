@@ -144,13 +144,13 @@ it('widget response includes nested widget metadata', function () {
     seedWidgets();
     $user    = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::where('slug', 'tasks_list')->first();
+    $widget  = Widget::where('slug', 'tasks_board')->first();
 
     $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
         'widget_id' => $widget->id,
     ])->assertStatus(201);
 
-    expect($response->json('data.widget.slug'))->toBe('tasks_list')
+    expect($response->json('data.widget.slug'))->toBe('tasks_board')
         ->and($response->json('data.widget.name'))->not->toBeNull();
 });
 
