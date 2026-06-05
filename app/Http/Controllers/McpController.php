@@ -12,6 +12,7 @@ use App\Mcp\Tools\GetProjectNotes;
 use App\Mcp\Tools\GetRecentActivity;
 use App\Mcp\Tools\GetSections;
 use App\Mcp\Tools\GetSessionContext;
+use App\Mcp\Tools\SyncTodos;
 use Illuminate\Http\Request;
 
 class McpController extends Controller
@@ -29,6 +30,7 @@ class McpController extends Controller
             new GetSections(),
             new CreateTask(),
             new CompleteTask(),
+            new SyncTodos(),
         ]);
 
         $response = $server->handle($payload, $request);
