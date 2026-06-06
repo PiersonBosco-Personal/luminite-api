@@ -2,7 +2,7 @@ name: Deploy API
 
 on:
   push:
-    branches: [main]
+    branches: [deploy]
 
 jobs:
   test:
@@ -29,7 +29,9 @@ jobs:
           envs: ENV_KEY
           script: |
             cd /var/www/luminite-api
-            git pull origin main
+            git fetch origin deploy
+            git checkout deploy 2>/dev/null || git checkout -b deploy origin/deploy
+            git pull origin deploy
             composer install --no-dev --optimize-autoloader --no-interaction
             php artisan env:decrypt --env=production --key="$ENV_KEY" --filename=.env --force
             php artisan migrate --force
