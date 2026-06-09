@@ -85,7 +85,7 @@ class AuthController extends Controller
     public function resetPassword(ResetPasswordRequest $request)
     {
         $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
+            $request->only('email', 'password', 'token'),
             function (User $user, string $password) use ($request) {
                 $user->forceFill([
                     'password' => Hash::make($password),
@@ -108,8 +108,8 @@ class AuthController extends Controller
         if ($status !== Password::PASSWORD_RESET) {
             return response()->json([
                 'data'    => null,
-                'message' => __($status),
-                'errors'  => ['email' => [__($status)]],
+                'message' => 'This password reset link is invalid or has expired.',
+                'errors'  => ['token' => ['This password reset link is invalid or has expired.']],
             ], 422);
         }
 

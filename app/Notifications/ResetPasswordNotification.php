@@ -24,11 +24,15 @@ class ResetPasswordNotification extends Notification
             . '/reset-password/' . $this->token
             . '?email=' . urlencode($notifiable->getEmailForPasswordReset());
 
+        $broker = config('auth.defaults.passwords');
+        $expiry = config("auth.passwords.{$broker}.expire");
+
         return (new MailMessage)
             ->subject('Reset your Luminite password')
             ->markdown('emails.password-reset', [
                 'resetUrl' => $link,
                 'name'     => $notifiable->name,
+                'expiry'   => $expiry,
             ]);
     }
 }

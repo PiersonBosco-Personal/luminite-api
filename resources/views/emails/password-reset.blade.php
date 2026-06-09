@@ -4,7 +4,7 @@
 Hi {{ $name }},
 
 We received a request to reset the password for your Luminite account.
-Click the button below to choose a new password. This link expires in 60 minutes.
+Click the button below to choose a new password. This link expires in {{ $expiry }} minutes.
 
 @component('mail::button', ['url' => $resetUrl])
 Reset Password
