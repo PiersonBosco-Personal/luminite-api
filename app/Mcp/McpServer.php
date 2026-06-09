@@ -2,6 +2,7 @@
 
 namespace App\Mcp;
 
+use App\Mcp\Prompts\Prompt;
 use App\Mcp\Tools\Tool;
 use App\Models\McpHistory;
 use Illuminate\Http\Request;
@@ -9,8 +10,11 @@ use Illuminate\Support\Facades\Log;
 
 class McpServer
 {
-    /** @param Tool[] $tools */
-    public function __construct(private array $tools) {}
+    /**
+     * @param Tool[]   $tools
+     * @param Prompt[] $prompts
+     */
+    public function __construct(private array $tools, private array $prompts = []) {}
 
     public function handle(array $payload, Request $request): array
     {
@@ -23,10 +27,12 @@ class McpServer
         $id     = $payload['id'] ?? null;
 
         return match ($method) {
-            'initialize' => $this->initialize($id),
-            'tools/list' => $this->toolsList($id),
-            'tools/call' => $this->toolsCall($payload, $request, $id),
-            default      => $this->error($id, -32601, "Method not found: {$method}"),
+            'initialize'   => $this->initialize($id),
+            'tools/list'   => $this->toolsList($id),
+            'tools/call'   => $this->toolsCall($payload, $request, $id),
+            'prompts/list' => $this->promptsList($id),
+            'prompts/get'  => $this->promptsGet($payload, $id),
+            default        => $this->error($id, -32601, "Method not found: {$method}"),
         };
     }
 
@@ -38,7 +44,7 @@ class McpServer
             'result'  => [
                 'protocolVersion' => '2024-11-05',
                 'serverInfo'      => ['name' => 'luminite', 'version' => '1.0.0'],
-                'capabilities'    => ['tools' => new \stdClass()],
+                'capabilities'    => ['tools' => new \stdClass(), 'prompts' => new \stdClass()],
             ],
         ];
     }
@@ -50,6 +56,37 @@ class McpServer
             'id'      => $id,
             'result'  => [
                 'tools' => array_map(fn(Tool $t) => $t->definition(), $this->tools),
+            ],
+        ];
+    }
+
+    private function promptsList(mixed $id): array
+    {
+        return [
+            'jsonrpc' => '2.0',
+            'id'      => $id,
+            'result'  => [
+                'prompts' => array_map(fn (Prompt $p) => $p->definition(), $this->prompts),
+            ],
+        ];
+    }
+
+    private function promptsGet(array $payload, mixed $id): array
+    {
+        $name = $payload['params']['name'] ?? '';
+
+        $prompt = collect($this->prompts)->first(fn (Prompt $p) => $p->definition()['name'] === $name);
+
+        if (! $prompt) {
+            return $this->error($id, -32602, "Prompt not found: {$name}");
+        }
+
+        return [
+            'jsonrpc' => '2.0',
+            'id'      => $id,
+            'result'  => [
+                'description' => $prompt->definition()['description'] ?? '',
+                'messages'    => $prompt->messages(),
             ],
         ];
     }

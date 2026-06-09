@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mcp\McpServer;
+use App\Mcp\Prompts\InitializeProjectPrompt;
 use App\Mcp\Tools\CompleteTask;
 use App\Mcp\Tools\CreateTask;
 use App\Mcp\Tools\GetLabels;
@@ -33,6 +34,8 @@ class McpController extends Controller
             new CompleteTask(),
             new SyncTodos(),
             new LogSessionActivity(),
+        ], [
+            new InitializeProjectPrompt(),
         ]);
 
         $response = $server->handle($payload, $request);
