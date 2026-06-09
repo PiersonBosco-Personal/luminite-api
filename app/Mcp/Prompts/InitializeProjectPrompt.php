@@ -38,9 +38,18 @@ You are initializing a Luminite project. Follow these steps exactly, in order.
    - widgets: max 6 catalog slugs from: tasks_board, notes_list, activity_feed, ai_chat,
      task_burndown, deadline_tracker, label_breakdown, time_tracker, time_report
 
-5. Show the complete draft in chat — details text, tech-stack tree, sections, labels,
-   tasks, widget set — and get the user's explicit approval. Do not call the tool
-   before approval. Revise and re-show if they ask for changes.
+5. Show the user the COMPLETE draft, then get their explicit approval.
+   CRITICAL — how to show it: print the entire draft as plain, readable markdown
+   directly in your reply body, BEFORE you ask anything. Include every part in full:
+   the description / goals / architecture-notes text, the tech-stack tree, the section
+   list, every label (name + color), every task (title, section, priority, labels,
+   description), and the widget set. Nothing abbreviated, nothing collapsed.
+   Do NOT place the draft inside an approval prompt, a confirmation dialog, a tool
+   "preview", or any UI widget — those truncate long content and the user will approve
+   blind. The full draft must be visible as ordinary message text above your question.
+   Only after the draft is fully printed, ask the user to approve or request changes.
+   Do not call the tool before they approve. Revise and re-print the full draft if they
+   ask for changes.
 
 6. After approval, call initialize_project exactly once with the approved payload.
    The server validates everything and applies it atomically. If it returns an error,

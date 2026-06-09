@@ -2,8 +2,7 @@
 
 namespace App\Mcp\Tools;
 
-use App\Events\ProjectUpdated;
-use App\Events\TaskCreated;
+use App\Events\ProjectInitialized;
 use App\Mcp\Validation\InitializeProjectPayload;
 use App\Models\DashboardWidget;
 use App\Models\Label;
@@ -208,7 +207,7 @@ class InitializeProject extends Tool
             }
 
             // 3e. Tasks — position within each section = payload order
-            $taskModels       = [];
+            $taskCount        = 0;
             $sectionPositions = [];
             foreach ($payload['tasks'] as $task) {
                 $position = $sectionPositions[$task['section']] ?? 0;
@@ -229,7 +228,7 @@ class InitializeProject extends Tool
                     $model->labels()->sync(array_map(fn (int $i) => $labelIds[$i], $task['labels']));
                 }
 
-                $taskModels[] = $model;
+                $taskCount++;
             }
 
             // 3f. Widgets — token user's dashboard, default grid sizes,
@@ -273,12 +272,11 @@ class InitializeProject extends Tool
             }
 
             return [
-                'taskModels' => $taskModels,
-                'counts'     => [
+                'counts' => [
                     'stack'    => $stackCount,
                     'sections' => count($sectionIds),
                     'labels'   => count($labelIds),
-                    'tasks'    => count($taskModels),
+                    'tasks'    => $taskCount,
                     'widgets'  => $placed,
                 ],
             ];
@@ -288,14 +286,12 @@ class InitializeProject extends Tool
             return $result['error'];
         }
 
-        // 4. Broadcast after commit — consistent with create_task / sync_todos.
-        foreach ($result['taskModels'] as $task) {
-            $task->load('assignee', 'labels');
-            broadcast(new TaskCreated($task, $projectId));
-        }
-
+        // 4. Broadcast after commit. Init creates details, tech stack, sections,
+        //    labels, tasks, and widgets in one shot, so we fire a single
+        //    ProjectInitialized event; clients refetch every affected surface
+        //    from it rather than reacting to a burst of per-entity events.
         $project->refresh();
-        broadcast(new ProjectUpdated($project, $projectId));
+        broadcast(new ProjectInitialized($project, $projectId));
 
         // 5. One activity row total — keeps the feed readable.
         $c = $result['counts'];

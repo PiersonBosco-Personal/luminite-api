@@ -1,5 +1,8 @@
 <?php
 
+use App\Events\ProjectInitialized;
+use App\Events\ProjectUpdated;
+use App\Events\TaskCreated;
 use App\Models\ActivityLog;
 use App\Models\DashboardWidget;
 use App\Models\Label;
@@ -8,6 +11,7 @@ use App\Models\Task;
 use App\Models\TaskSection;
 use App\Models\TechStack;
 use App\Models\Widget;
+use Illuminate\Support\Facades\Event;
 
 /** Blank project + write token. ProjectFactory fills description, so null it. */
 function initBlankToken(array $scopes = ['read', 'write']): array
@@ -107,6 +111,32 @@ it('initializes a blank project end to end', function () {
 
     // mcp_history row (automatic via McpServer)
     expect(McpHistory::where('tool', 'initialize_project')->where('status', 'success')->count())->toBe(1);
+});
+
+it('broadcasts a single ProjectInitialized event and no per-task events', function () {
+    seedWidgets();
+    [$raw, , $project] = initBlankToken();
+
+    Event::fake([ProjectInitialized::class, TaskCreated::class, ProjectUpdated::class]);
+
+    callInitializeProject($raw, initFullPayload())->assertStatus(200);
+
+    Event::assertDispatchedTimes(ProjectInitialized::class, 1);
+    Event::assertDispatched(ProjectInitialized::class, fn ($e) => $e->projectId === $project->id);
+    Event::assertNotDispatched(TaskCreated::class);  // replaced by the single init event
+    Event::assertNotDispatched(ProjectUpdated::class);
+});
+
+it('does not broadcast ProjectInitialized when the project is not blank', function () {
+    seedWidgets();
+    [$raw, , $project] = initBlankToken();
+    $project->update(['description' => 'existing']);
+
+    Event::fake([ProjectInitialized::class]);
+
+    callInitializeProject($raw, initFullPayload())->assertStatus(200);
+
+    Event::assertNotDispatched(ProjectInitialized::class);
 });
 
 it('refuses when the project is not blank', function (callable $setup) {
