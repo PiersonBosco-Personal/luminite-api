@@ -13,6 +13,7 @@ use App\Mcp\Tools\GetProjectNotes;
 use App\Mcp\Tools\GetRecentActivity;
 use App\Mcp\Tools\GetSections;
 use App\Mcp\Tools\GetSessionContext;
+use App\Mcp\Tools\InitializeProject;
 use App\Mcp\Tools\LogSessionActivity;
 use App\Mcp\Tools\SyncTodos;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ class McpController extends Controller
             new CompleteTask(),
             new SyncTodos(),
             new LogSessionActivity(),
+            new InitializeProject(),
         ], [
             new InitializeProjectPrompt(),
         ]);
