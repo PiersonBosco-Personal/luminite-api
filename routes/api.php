@@ -31,6 +31,10 @@ Route::prefix('v1')->group(function () {
     // Public
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login',    [AuthController::class, 'login']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])
+        ->middleware('throttle:5,1');
+    Route::post('/auth/reset-password',  [AuthController::class, 'resetPassword'])
+        ->middleware('throttle:10,1');
     Route::get('/invitations/{token}',         [InvitationController::class, 'show']);
     Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
