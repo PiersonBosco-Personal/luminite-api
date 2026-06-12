@@ -52,6 +52,66 @@ it('create_task defaults to the first section when none given', function () {
     expect(Task::where('title', 'No section task')->first()->section_id)->toBe($first->id);
 });
 
+it('creates a subtask under a parent when parent is given', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $section = \App\Models\TaskSection::create([
+        'project_id' => $project->id, 'name' => 'Backlog', 'position' => 0,
+    ]);
+    $parent = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'Parent', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 7,
+            'params'  => ['name' => 'create_task', 'arguments' => [
+                'title'  => 'Child task',
+                'parent' => $parent->id,
+            ]],
+        ])
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('Created task');
+    expect(\App\Models\Task::where('title', 'Child task')->first()->parent_task_id)->toBe($parent->id);
+});
+
+it('rejects a parent task that belongs to a different project', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+
+    // Build a second, completely separate project with its own section and task.
+    $otherUser    = \App\Models\User::factory()->create();
+    $otherProject = createProject($otherUser);
+    $otherSection = TaskSection::factory()->create(['project_id' => $otherProject->id, 'position' => 0]);
+    $foreignTask  = Task::create([
+        'project_id' => $otherProject->id,
+        'section_id' => $otherSection->id,
+        'title'      => 'Foreign parent',
+        'status'     => 'todo',
+        'priority'   => 'medium',
+        'position'   => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 5,
+            'params'  => ['name' => 'create_task', 'arguments' => [
+                'title'  => 'Orphan child',
+                'parent' => $foreignTask->id,
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain("Error: parent task #{$foreignTask->id}")
+        ->and($text)->toContain('not found in this project');
+
+    expect(Task::where('project_id', $project->id)->where('title', 'Orphan child')->exists())->toBeFalse();
+});
+
 it('create_task returns an error string for an unknown section', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
     TaskSection::factory()->create(['project_id' => $project->id, 'position' => 0]);

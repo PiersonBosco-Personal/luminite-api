@@ -22,7 +22,7 @@ class CreateTask extends Tool
     {
         return [
             'name'        => 'create_task',
-            'description' => 'Create a task. Section and labels accept either ids or names; an omitted section defaults to the first section. Unknown label names are created automatically. Requires a token with the write scope.',
+            'description' => 'Create a task. Section and labels accept either ids or names; an omitted section defaults to the first section. Unknown label names are created automatically. Pass parent (a task id) to create this as a subtask. Requires a token with the write scope.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [
@@ -31,6 +31,7 @@ class CreateTask extends Tool
                     'priority'    => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'urgent']],
                     'section'     => ['type' => ['string', 'integer']],
                     'labels'      => ['type' => 'array', 'items' => ['type' => ['string', 'integer']]],
+                    'parent'      => ['type' => 'integer', 'description' => 'Optional parent task id — creates this as a subtask.'],
                 ],
                 'required' => ['title'],
             ],
@@ -58,18 +59,28 @@ class CreateTask extends Tool
             ? $args['priority']
             : 'medium';
 
-        $task = DB::transaction(function () use ($projectId, $sectionId, $userId, $title, $args, $priority, $labelIds) {
+        $parentId = null;
+        if (isset($args['parent']) && $args['parent'] !== '') {
+            $parentId = (int) $args['parent'];
+            $parentExists = Task::where('project_id', $projectId)->whereKey($parentId)->exists();
+            if (! $parentExists) {
+                return "Error: parent task #{$parentId} not found in this project.";
+            }
+        }
+
+        $task = DB::transaction(function () use ($projectId, $sectionId, $userId, $title, $args, $priority, $labelIds, $parentId) {
             $position = (Task::where('project_id', $projectId)->where('section_id', $sectionId)->max('position') ?? -1) + 1;
 
             $task = Task::create([
-                'project_id'  => $projectId,
-                'section_id'  => $sectionId,
-                'created_by'  => $userId,
-                'title'       => $title,
-                'description' => $args['description'] ?? null,
-                'status'      => 'todo',
-                'priority'    => $priority,
-                'position'    => $position,
+                'project_id'     => $projectId,
+                'section_id'     => $sectionId,
+                'parent_task_id' => $parentId,
+                'created_by'     => $userId,
+                'title'          => $title,
+                'description'    => $args['description'] ?? null,
+                'status'         => 'todo',
+                'priority'       => $priority,
+                'position'       => $position,
             ]);
 
             if ($labelIds) {
