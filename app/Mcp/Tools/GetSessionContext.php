@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 
 class GetSessionContext extends Tool
 {
+    private const MAX_OPEN_TASKS = 25;
+
     public function definition(): array
     {
         return [
@@ -109,7 +111,7 @@ class GetSessionContext extends Tool
             $lines[] = 'Open Tasks: none';
         } else {
             $lines[] = "Open Tasks ({$tasks->count()}):";
-            foreach ($tasks as $task) {
+            foreach ($tasks->take(self::MAX_OPEN_TASKS) as $task) {
                 $parts = ["[{$task->priority}]", $task->title, "— {$task->status}"];
 
                 if ($task->section) {
@@ -126,6 +128,11 @@ class GetSessionContext extends Tool
                 }
 
                 $lines[] = '- ' . implode(' ', $parts);
+            }
+
+            $overflow = $tasks->count() - self::MAX_OPEN_TASKS;
+            if ($overflow > 0) {
+                $lines[] = "… +{$overflow} more (use get_open_tasks to see all)";
             }
         }
 

@@ -252,6 +252,30 @@ it('get_sections does not return sections from other projects', function () {
     expect($text)->not->toContain('secret-section');
 });
 
+it('caps open tasks in session context and notes the overflow', function () {
+    [$raw, , $project] = mcpToken();
+    $section = \App\Models\TaskSection::create([
+        'project_id' => $project->id, 'name' => 'Backlog', 'position' => 0,
+    ]);
+
+    foreach (range(1, 30) as $n) {
+        \App\Models\Task::create([
+            'project_id' => $project->id, 'section_id' => $section->id,
+            'title' => "Task {$n}", 'status' => 'todo', 'priority' => 'medium', 'position' => $n,
+        ]);
+    }
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 3,
+            'params'  => ['name' => 'get_session_context', 'arguments' => []],
+        ])
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('Open Tasks (30)')
+        ->and($text)->toContain('… +5 more (use get_open_tasks to see all)');
+});
+
 it('annotates read tools as read-only and write tools as not read-only', function () {
     [$raw] = mcpToken([], ['read', 'write']);
 
