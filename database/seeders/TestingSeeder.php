@@ -20,8 +20,8 @@ class TestingSeeder extends Seeder
         $this->call(WidgetSeeder::class);
 
         $owner = User::firstOrCreate(
-            ['email' => 'test@example.com'],
-            ['name' => 'Test User', 'password' => bcrypt('asdfasdf')],
+            ['email' => 'piersonbosco@gmail.com'],
+            ['name' => 'Pierson Bosco', 'password' => bcrypt('asdfasdf')],
         );
 
         $goals =
