@@ -11,7 +11,7 @@ class GetLabels extends Tool
     {
         return [
             'name'        => 'get_labels',
-            'description' => 'Returns all labels defined for this project with their IDs. Call before filtering tasks by label or before creating tasks that need labels.',
+            'description' => 'List all labels (id, name, color). Call this to find a label id before attaching it, or to check whether a label already exists.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => new \stdClass(),

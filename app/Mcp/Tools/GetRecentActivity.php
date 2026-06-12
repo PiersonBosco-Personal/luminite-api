@@ -12,7 +12,7 @@ class GetRecentActivity extends Tool
     {
         return [
             'name'        => 'get_recent_activity',
-            'description' => 'Returns recent project activity in chronological order. Defaults to the last 48 hours. Use when the user asks what changed recently, what was completed, or what the team has been doing.',
+            'description' => 'List recent project activity. Call this to catch up on what changed since you last worked, or to confirm a teammate has not already done something. Filter by since (ISO 8601) and limit.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [

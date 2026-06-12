@@ -11,7 +11,7 @@ class GetProjectNotes extends Tool
     {
         return [
             'name'        => 'get_project_notes',
-            'description' => 'Search project notes by keyword or label. Use when the user references documentation, past decisions, or asks about notes. Keyword matches title and content.',
+            'description' => 'Search project notes. Call this before writing a new note to avoid duplicating an existing decision, or to pull prior context on a feature. Filter by keyword or tag.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [

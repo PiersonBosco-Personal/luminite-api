@@ -11,7 +11,7 @@ class GetOpenTasks extends Tool
     {
         return [
             'name'        => 'get_open_tasks',
-            'description' => 'Returns tasks filtered by status, priority, section, or label. Excludes done tasks by default. Use mid-session for targeted queries — blocked tasks, urgent items, tasks in a specific section. At session start, use get_session_context instead.',
+            'description' => 'List open (non-done) tasks. Call this when you need to know what to work on, or to find a task id before updating/completing it. Filter by status, priority, section_id, or label_id.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [
