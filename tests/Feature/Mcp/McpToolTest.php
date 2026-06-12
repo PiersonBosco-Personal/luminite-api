@@ -288,3 +288,133 @@ it('annotates read tools as read-only and write tools as not read-only', functio
         ->and($tools['create_task']['annotations']['readOnlyHint'])->toBeFalse()
         ->and($tools['create_task']['annotations']['destructiveHint'])->toBeFalse();
 });
+
+it('updates a task title, priority, and moves it to another section', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $todo = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $doing = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'In Progress', 'position' => 1]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $todo->id,
+        'title' => 'Old title', 'status' => 'todo', 'priority' => 'low', 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 8,
+            'params'  => ['name' => 'update_task', 'arguments' => [
+                'task_id'  => $task->id,
+                'title'    => 'New title',
+                'priority' => 'high',
+                'section'  => 'In Progress',
+            ]],
+        ])
+        ->json('result.content.0.text');
+
+    $task->refresh();
+    expect($task->title)->toBe('New title')
+        ->and($task->priority)->toBe('high')
+        ->and($task->section_id)->toBe($doing->id);
+    expect($text)->toContain("Updated task #{$task->id}");
+});
+
+it('rejects update_task without the write scope', function () {
+    [$raw, , $project] = mcpToken([], ['read']); // read-only
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'X', 'status' => 'todo', 'priority' => 'low', 'position' => 0,
+    ]);
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 8,
+            'params'  => ['name' => 'update_task', 'arguments' => ['task_id' => $task->id, 'title' => 'Y']],
+        ])
+        ->assertJsonPath('error.code', -32603);
+});
+
+it('rejects an assignee who is not a project member', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'Some task', 'status' => 'todo', 'priority' => 'low', 'position' => 0,
+    ]);
+
+    $outsider = \App\Models\User::factory()->create();
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 9,
+            'params'  => ['name' => 'update_task', 'arguments' => [
+                'task_id'     => $task->id,
+                'assignee_id' => $outsider->id,
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('is not a member of this project');
+    expect($task->fresh()->assigned_to)->toBeNull();
+});
+
+it('rejects a parent task from a different project', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'My task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    $otherUser    = \App\Models\User::factory()->create();
+    $otherProject = createProject($otherUser);
+    $otherSection = \App\Models\TaskSection::factory()->create(['project_id' => $otherProject->id, 'position' => 0]);
+    $foreignTask  = \App\Models\Task::create([
+        'project_id' => $otherProject->id, 'section_id' => $otherSection->id,
+        'title' => 'Foreign task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 10,
+            'params'  => ['name' => 'update_task', 'arguments' => [
+                'task_id' => $task->id,
+                'parent'  => $foreignTask->id,
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('not found in this project');
+    expect($task->fresh()->parent_task_id)->toBeNull();
+});
+
+it('replaces a task\'s labels via update_task', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'Labelled task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    $labelA = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'frontend', 'color' => '#111111']);
+    $labelB = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'backend',  'color' => '#222222']);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 11,
+            'params'  => ['name' => 'update_task', 'arguments' => [
+                'task_id' => $task->id,
+                'labels'  => [$labelA->id, $labelB->id],
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain("Updated task #{$task->id}");
+
+    $attachedIds = $task->fresh()->labels->pluck('id')->sort()->values()->all();
+    expect($attachedIds)->toHaveCount(2)
+        ->and($attachedIds)->toContain($labelA->id)
+        ->and($attachedIds)->toContain($labelB->id);
+});

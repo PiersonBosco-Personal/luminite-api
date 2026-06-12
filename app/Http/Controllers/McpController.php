@@ -15,6 +15,7 @@ use App\Mcp\Tools\GetSessionContext;
 use App\Mcp\Tools\InitializeProject;
 use App\Mcp\Tools\LogSessionActivity;
 use App\Mcp\Tools\SyncTodos;
+use App\Mcp\Tools\UpdateTask;
 use Illuminate\Http\Request;
 
 class McpController extends Controller
@@ -30,6 +31,7 @@ class McpController extends Controller
             new GetLabels(),
             new GetSections(),
             new CreateTask(),
+            new UpdateTask(),
             new CompleteTask(),
             new SyncTodos(),
             new LogSessionActivity(),
