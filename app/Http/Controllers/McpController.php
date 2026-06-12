@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mcp\McpServer;
 use App\Mcp\Prompts\InitializeProjectPrompt;
 use App\Mcp\Tools\CompleteTask;
+use App\Mcp\Tools\CreateNote;
 use App\Mcp\Tools\CreateTask;
 use App\Mcp\Tools\GetLabels;
 use App\Mcp\Tools\GetOpenTasks;
@@ -30,6 +31,7 @@ class McpController extends Controller
             new GetRecentActivity(),
             new GetLabels(),
             new GetSections(),
+            new CreateNote(),
             new CreateTask(),
             new UpdateTask(),
             new CompleteTask(),

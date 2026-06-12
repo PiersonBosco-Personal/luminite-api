@@ -418,3 +418,29 @@ it('replaces a task\'s labels via update_task', function () {
         ->and($attachedIds)->toContain($labelA->id)
         ->and($attachedIds)->toContain($labelB->id);
 });
+
+it('creates a note linked to a task', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'Auth', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 10,
+            'params'  => ['name' => 'create_note', 'arguments' => [
+                'title'   => 'Auth decision',
+                'content' => "Chose Sanctum.\nPermanent tokens.",
+                'task_id' => $task->id,
+            ]],
+        ])
+        ->json('result.content.0.text');
+
+    $note = \App\Models\Note::where('title', 'Auth decision')->first();
+    expect($note)->not->toBeNull()
+        ->and($note->task_id)->toBe($task->id)
+        ->and($note->content)->toContain('Chose Sanctum');
+    expect($text)->toContain('Created note');
+});
