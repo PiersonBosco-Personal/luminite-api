@@ -558,6 +558,35 @@ it('reorder updates section positions by array order', function () {
         ->and($sectionB->fresh()->position)->toBe(2);
 });
 
+it('creates a label and attaches it to a task', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'X', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 13,
+            'params'  => ['name' => 'manage_label', 'arguments' => [
+                'action' => 'create', 'name' => 'urgent-bug', 'color' => '#ef4444',
+            ]],
+        ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Created label'));
+
+    $label = \App\Models\Label::where('project_id', $project->id)->where('name', 'urgent-bug')->first();
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 14,
+            'params'  => ['name' => 'manage_label', 'arguments' => [
+                'action' => 'attach', 'label' => $label->id, 'task_id' => $task->id,
+            ]],
+        ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Attached'));
+
+    expect($task->fresh()->labels()->where('labels.id', $label->id)->exists())->toBeTrue();
+});
+
 it('reorder rejects a foreign section id and mutates nothing', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
 
