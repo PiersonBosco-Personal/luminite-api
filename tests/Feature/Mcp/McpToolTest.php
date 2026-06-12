@@ -30,7 +30,7 @@ it('falls back to the default protocol version when the client sends none', func
          ->assertJsonPath('result.protocolVersion', '2025-06-18');
 });
 
-it('lists available tools including get_project_context', function () {
+it('lists available tools including get_session_context', function () {
     [$raw] = mcpToken();
 
     $data = $this->withToken($raw)
@@ -38,7 +38,9 @@ it('lists available tools including get_project_context', function () {
          ->assertStatus(200)
          ->json('result.tools');
 
-    expect(collect($data)->pluck('name'))->toContain('get_project_context');
+    expect(collect($data)->pluck('name'))
+        ->toContain('get_session_context')
+        ->not->toContain('get_project_context');
 });
 
 it('returns project name, description, and status in context', function () {
@@ -53,7 +55,7 @@ it('returns project name, description, and status in context', function () {
              'jsonrpc' => '2.0',
              'method'  => 'tools/call',
              'id'      => 3,
-             'params'  => ['name' => 'get_project_context', 'arguments' => []],
+             'params'  => ['name' => 'get_session_context', 'arguments' => []],
          ])
          ->assertStatus(200)
          ->json('result.content.0.text');
@@ -85,7 +87,7 @@ it('returns tech stack entries in context', function () {
              'jsonrpc' => '2.0',
              'method'  => 'tools/call',
              'id'      => 4,
-             'params'  => ['name' => 'get_project_context', 'arguments' => []],
+             'params'  => ['name' => 'get_session_context', 'arguments' => []],
          ])
          ->assertStatus(200)
          ->json('result.content.0.text');
