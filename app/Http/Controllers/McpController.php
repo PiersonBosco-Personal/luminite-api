@@ -9,6 +9,7 @@ use App\Mcp\Tools\CreateNote;
 use App\Mcp\Tools\CreateTask;
 use App\Mcp\Tools\GetLabels;
 use App\Mcp\Tools\GetOpenTasks;
+use App\Mcp\Tools\ManageSection;
 use App\Mcp\Tools\GetProjectNotes;
 use App\Mcp\Tools\GetRecentActivity;
 use App\Mcp\Tools\GetSections;
@@ -32,6 +33,7 @@ class McpController extends Controller
             new GetRecentActivity(),
             new GetLabels(),
             new GetSections(),
+            new ManageSection(),
             new CreateNote(),
             new UpdateNote(),
             new CreateTask(),

@@ -517,3 +517,70 @@ it('no-op returns the No changes message', function () {
     $note->refresh();
     expect($note->content)->toBe($originalContent);
 });
+
+it('creates a section via manage_section', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 12,
+            'params'  => ['name' => 'manage_section', 'arguments' => [
+                'action' => 'create', 'name' => 'In Review',
+            ]],
+        ])
+        ->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Created section'));
+
+    expect(\App\Models\TaskSection::where('project_id', $project->id)->where('name', 'In Review')->exists())->toBeTrue();
+});
+
+it('reorder updates section positions by array order', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+
+    $sectionA = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'A', 'position' => 0]);
+    $sectionB = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'B', 'position' => 1]);
+    $sectionC = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'C', 'position' => 2]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 30,
+            'params'  => ['name' => 'manage_section', 'arguments' => [
+                'action' => 'reorder',
+                'order'  => [$sectionC->id, $sectionA->id, $sectionB->id],
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('Reordered 3 sections');
+
+    expect($sectionC->fresh()->position)->toBe(0)
+        ->and($sectionA->fresh()->position)->toBe(1)
+        ->and($sectionB->fresh()->position)->toBe(2);
+});
+
+it('reorder rejects a foreign section id and mutates nothing', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+
+    $sectionA = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'A', 'position' => 0]);
+    $sectionB = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'B', 'position' => 1]);
+
+    $otherUser    = \App\Models\User::factory()->create();
+    $otherProject = createProject($otherUser);
+    $sectionF     = \App\Models\TaskSection::create(['project_id' => $otherProject->id, 'name' => 'F', 'position' => 0]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 31,
+            'params'  => ['name' => 'manage_section', 'arguments' => [
+                'action' => 'reorder',
+                'order'  => [$sectionB->id, $sectionF->id],
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('not in this project');
+
+    expect($sectionA->fresh()->position)->toBe(0)
+        ->and($sectionB->fresh()->position)->toBe(1);
+});
