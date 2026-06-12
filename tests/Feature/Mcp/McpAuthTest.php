@@ -6,14 +6,14 @@ use App\Models\User;
 it('returns 401 JSON-RPC error when Authorization header is missing', function () {
     $this->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
          ->assertStatus(401)
-         ->assertJsonPath('error.message', 'Unauthorized: missing token');
+         ->assertJsonPath('error.message', 'Authentication failed: your Luminite MCP token is missing, invalid, or revoked. Run `npx luminite-connect` to reconnect.');
 });
 
 it('returns 401 JSON-RPC error when token is invalid', function () {
     $this->withToken('not-a-real-token')
          ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
          ->assertStatus(401)
-         ->assertJsonPath('error.message', 'Unauthorized: invalid or expired token');
+         ->assertJsonPath('error.message', 'Authentication failed: your Luminite MCP token is missing, invalid, or revoked. Run `npx luminite-connect` to reconnect.');
 });
 
 it('returns 401 JSON-RPC error when token is expired', function () {
@@ -25,7 +25,7 @@ it('returns 401 JSON-RPC error when token is expired', function () {
     $this->withToken($raw)
          ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
          ->assertStatus(401)
-         ->assertJsonPath('error.message', 'Unauthorized: invalid or expired token');
+         ->assertJsonPath('error.message', 'Authentication failed: your Luminite MCP token is missing, invalid, or revoked. Run `npx luminite-connect` to reconnect.');
 });
 
 it('accepts a valid token and passes request through', function () {
@@ -53,4 +53,12 @@ it('updates last_used_at on each authenticated request', function () {
          ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1]);
 
     expect($token->fresh()->last_used_at)->not->toBeNull();
+});
+
+it('returns an actionable reconnect message for an invalid token', function () {
+    $this->withToken('not-a-real-token')
+         ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
+         ->assertStatus(401)
+         ->assertJsonPath('error.code', -32001)
+         ->assertJsonPath('error.message', fn ($m) => str_contains($m, 'npx luminite-connect'));
 });

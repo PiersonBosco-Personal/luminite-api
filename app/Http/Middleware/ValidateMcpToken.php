@@ -9,18 +9,20 @@ use Illuminate\Support\Facades\DB;
 
 class ValidateMcpToken
 {
+    private const AUTH_ERROR_MESSAGE = 'Authentication failed: your Luminite MCP token is missing, invalid, or revoked. Run `npx luminite-connect` to reconnect.';
+
     public function handle(Request $request, Closure $next)
     {
         $bearer = $request->bearerToken();
 
         if (! $bearer) {
-            return $this->error($request, 'Unauthorized: missing token');
+            return $this->error($request, self::AUTH_ERROR_MESSAGE);
         }
 
         $token = McpToken::where('token', hash('sha256', $bearer))->first();
 
         if (! $token || $token->isExpired()) {
-            return $this->error($request, 'Unauthorized: invalid or expired token');
+            return $this->error($request, self::AUTH_ERROR_MESSAGE);
         }
 
         $token->update([
