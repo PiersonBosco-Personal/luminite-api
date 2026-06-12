@@ -73,6 +73,23 @@ it('lists and returns the triage-todos prompt', function () {
         ->assertJsonPath('result.messages.0.content.text', fn ($t) => str_contains($t, 'Triage'));
 });
 
+it('lists and returns the wrap-up prompt', function () {
+    [$raw] = mcpToken();
+
+    $names = collect($this->withToken($raw)
+        ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'prompts/list', 'id' => 1])
+        ->json('result.prompts'))->pluck('name');
+    expect($names)->toContain('wrap-up');
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'prompts/get', 'id' => 2,
+            'params'  => ['name' => 'wrap-up'],
+        ])
+        ->assertStatus(200)
+        ->assertJsonPath('result.messages.0.content.text', fn ($t) => str_contains($t, 'log_session_activity'));
+});
+
 it('prompt methods write nothing to mcp_history', function () {
     [$raw] = mcpToken();
 
