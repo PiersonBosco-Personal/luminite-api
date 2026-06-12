@@ -62,7 +62,10 @@ class McpServer
             'jsonrpc' => '2.0',
             'id'      => $id,
             'result'  => [
-                'tools' => array_map(fn(Tool $t) => $t->definition(), $this->tools),
+                'tools' => array_map(
+                    fn (Tool $t) => $t->definition() + ['annotations' => $t->annotations()],
+                    $this->tools
+                ),
             ],
         ];
     }

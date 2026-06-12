@@ -249,3 +249,16 @@ it('get_sections does not return sections from other projects', function () {
 
     expect($text)->not->toContain('secret-section');
 });
+
+it('annotates read tools as read-only and write tools as not read-only', function () {
+    [$raw] = mcpToken([], ['read', 'write']);
+
+    $tools = collect($this->withToken($raw)
+        ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'tools/list', 'id' => 2])
+        ->json('result.tools'))
+        ->keyBy('name');
+
+    expect($tools['get_open_tasks']['annotations']['readOnlyHint'])->toBeTrue()
+        ->and($tools['create_task']['annotations']['readOnlyHint'])->toBeFalse()
+        ->and($tools['create_task']['annotations']['destructiveHint'])->toBeFalse();
+});
