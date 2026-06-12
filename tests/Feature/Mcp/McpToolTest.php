@@ -4,15 +4,30 @@ use App\Models\McpToken;
 use App\Models\TechStack;
 use App\Models\User;
 
-it('returns server info on initialize', function () {
+it('echoes the client-requested protocol version on initialize', function () {
+    [$raw] = mcpToken();
+
+    $this->withToken($raw)
+         ->postJson('/api/mcp', [
+             'jsonrpc' => '2.0',
+             'method'  => 'initialize',
+             'id'      => 1,
+             'params'  => ['protocolVersion' => '2025-06-18'],
+         ])
+         ->assertStatus(200)
+         ->assertJsonPath('jsonrpc', '2.0')
+         ->assertJsonPath('result.serverInfo.name', 'luminite')
+         ->assertJsonPath('result.protocolVersion', '2025-06-18');
+});
+
+it('falls back to the default protocol version when the client sends none', function () {
     [$raw] = mcpToken();
 
     $this->withToken($raw)
          ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
          ->assertStatus(200)
          ->assertJsonPath('jsonrpc', '2.0')
-         ->assertJsonPath('result.serverInfo.name', 'luminite')
-         ->assertJsonPath('result.protocolVersion', '2024-11-05');
+         ->assertJsonPath('result.protocolVersion', '2025-06-18');
 });
 
 it('lists available tools including get_project_context', function () {

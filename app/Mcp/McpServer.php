@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Log;
 
 class McpServer
 {
+    private const DEFAULT_PROTOCOL_VERSION = '2025-06-18';
+
     /**
      * @param Tool[]   $tools
      * @param Prompt[] $prompts
@@ -27,7 +29,7 @@ class McpServer
         $id     = $payload['id'] ?? null;
 
         return match ($method) {
-            'initialize'   => $this->initialize($id),
+            'initialize'   => $this->initialize($payload, $id),
             'tools/list'   => $this->toolsList($id),
             'tools/call'   => $this->toolsCall($payload, $request, $id),
             'prompts/list' => $this->promptsList($id),
@@ -36,13 +38,18 @@ class McpServer
         };
     }
 
-    private function initialize(mixed $id): array
+    private function initialize(array $payload, mixed $id): array
     {
+        $requested = $payload['params']['protocolVersion'] ?? null;
+        $version   = is_string($requested) && $requested !== ''
+            ? $requested
+            : self::DEFAULT_PROTOCOL_VERSION;
+
         return [
             'jsonrpc' => '2.0',
             'id'      => $id,
             'result'  => [
-                'protocolVersion' => '2024-11-05',
+                'protocolVersion' => $version,
                 'serverInfo'      => ['name' => 'luminite', 'version' => '1.0.0'],
                 'capabilities'    => ['tools' => new \stdClass(), 'prompts' => new \stdClass()],
             ],
