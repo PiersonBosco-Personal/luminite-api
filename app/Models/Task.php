@@ -23,6 +23,7 @@ class Task extends Model
         'position',
         'estimated_minutes',
         'source_hash',
+        'source_file',
     ];
 
     protected function casts(): array
