@@ -444,3 +444,76 @@ it('creates a note linked to a task', function () {
         ->and($note->content)->toContain('Chose Sanctum');
     expect($text)->toContain('Created note');
 });
+
+it('appends content to an existing note', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $note = \App\Models\Note::create([
+        'project_id' => $project->id, 'created_by' => $project->owner_id,
+        'title' => 'Log', 'content' => '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Day 1"}]}]}',
+        'is_pinned' => false, 'position' => 0,
+    ]);
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 11,
+            'params'  => ['name' => 'update_note', 'arguments' => [
+                'note_id' => $note->id,
+                'append'  => 'Day 2',
+            ]],
+        ])
+        ->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, "Updated note #{$note->id}"));
+
+    $note->refresh();
+    expect($note->content)->toContain('Day 1')->and($note->content)->toContain('Day 2');
+});
+
+it('content replaces the whole note body', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $note = \App\Models\Note::create([
+        'project_id' => $project->id, 'created_by' => $project->owner_id,
+        'title' => 'Replace Test', 'content' => '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Old body"}]}]}',
+        'is_pinned' => false, 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 12,
+            'params'  => ['name' => 'update_note', 'arguments' => [
+                'note_id' => $note->id,
+                'content' => 'Fresh body',
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain("Updated note #{$note->id}");
+
+    $note->refresh();
+    expect($note->content)->toContain('Fresh body')
+        ->and($note->content)->not->toContain('Old body');
+});
+
+it('no-op returns the No changes message', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $note = \App\Models\Note::create([
+        'project_id' => $project->id, 'created_by' => $project->owner_id,
+        'title' => 'Unchanged', 'content' => '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Original"}]}]}',
+        'is_pinned' => false, 'position' => 0,
+    ]);
+    $originalContent = $note->content;
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 13,
+            'params'  => ['name' => 'update_note', 'arguments' => [
+                'note_id' => $note->id,
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('No changes');
+
+    $note->refresh();
+    expect($note->content)->toBe($originalContent);
+});
