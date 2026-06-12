@@ -63,7 +63,7 @@ class SyncTodos extends Tool
             return 'Error: files must be a non-empty array of the paths you scanned.';
         }
 
-        $sectionId = $this->triageSectionId($projectId);
+        $sectionId = $this->triageSectionId($projectId, $userId);
 
         // Index incoming todos by file → set of source hashes.
         $incomingByFile = [];
@@ -184,7 +184,7 @@ class SyncTodos extends Tool
         return $completed;
     }
 
-    private function triageSectionId(int $projectId): int
+    private function triageSectionId(int $projectId, int $userId): int
     {
         $section = TaskSection::where('project_id', $projectId)
             ->whereRaw('LOWER(name) = ?', ['triage'])
@@ -197,6 +197,16 @@ class SyncTodos extends Tool
         $position = (int) TaskSection::where('project_id', $projectId)->max('position') + 1;
         $section  = TaskSection::create(['project_id' => $projectId, 'name' => 'Triage', 'position' => $position]);
         broadcast(new SectionCreated($section, $projectId));
+        app(ActivityLogService::class)->log(
+            projectId:    $projectId,
+            userId:       $userId,
+            eventType:    'section.created',
+            subjectType:  'section',
+            subjectLabel: $section->name,
+            subjectId:    $section->id,
+            description:  "created section {$section->name}",
+            viaMcp:       true,
+        );
 
         return $section->id;
     }

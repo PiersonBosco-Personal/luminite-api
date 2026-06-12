@@ -613,3 +613,56 @@ it('reorder rejects a foreign section id and mutates nothing', function () {
     expect($sectionA->fresh()->position)->toBe(0)
         ->and($sectionB->fresh()->position)->toBe(1);
 });
+
+it('create_note rejects a task_id from another project', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+
+    $otherUser    = \App\Models\User::factory()->create();
+    $otherProject = createProject($otherUser);
+    $otherSection = \App\Models\TaskSection::factory()->create(['project_id' => $otherProject->id, 'position' => 0]);
+    $foreignTask  = \App\Models\Task::create([
+        'project_id' => $otherProject->id, 'section_id' => $otherSection->id,
+        'title' => 'Foreign task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 40,
+            'params'  => ['name' => 'create_note', 'arguments' => [
+                'title'   => 'Hijack note',
+                'content' => 'Should not be created',
+                'task_id' => $foreignTask->id,
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('not found in this project');
+    expect(\App\Models\Note::where('title', 'Hijack note')->where('project_id', $project->id)->exists())->toBeFalse();
+});
+
+it('update_note rejects a note_id from another project', function () {
+    [$raw] = mcpToken([], ['read', 'write']);
+
+    $otherUser    = \App\Models\User::factory()->create();
+    $otherProject = createProject($otherUser);
+    $foreignNote  = \App\Models\Note::create([
+        'project_id' => $otherProject->id, 'created_by' => $otherUser->id,
+        'title' => 'Foreign note', 'content' => 'Original content',
+        'is_pinned' => false, 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 41,
+            'params'  => ['name' => 'update_note', 'arguments' => [
+                'note_id' => $foreignNote->id,
+                'append'  => 'hack',
+            ]],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('not found in this project');
+    expect($foreignNote->fresh()->content)->toBe('Original content');
+});

@@ -99,9 +99,9 @@ class ManageSection extends Tool
             }
         }
 
-        DB::transaction(function () use ($order) {
+        DB::transaction(function () use ($order, $projectId) {
             foreach ($order as $position => $id) {
-                TaskSection::whereKey($id)->update(['position' => $position]);
+                TaskSection::where('project_id', $projectId)->whereKey($id)->update(['position' => $position]);
             }
         });
 
