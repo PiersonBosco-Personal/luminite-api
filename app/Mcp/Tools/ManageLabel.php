@@ -3,6 +3,8 @@
 namespace App\Mcp\Tools;
 
 use App\Events\LabelCreated;
+use App\Events\NoteUpdated;
+use App\Events\TaskUpdated;
 use App\Mcp\Tools\Concerns\ResolvesTaskInput;
 use App\Models\Label;
 use App\Models\Note;
@@ -88,6 +90,7 @@ class ManageLabel extends Tool
 
         if ($action === 'attach') {
             $model->labels()->syncWithoutDetaching([$labelId]);
+            $this->broadcastSubjectUpdated($model, $projectId);
             app(ActivityLogService::class)->log(
                 projectId:    $projectId,
                 userId:       $userId,
@@ -102,6 +105,7 @@ class ManageLabel extends Tool
         }
 
         $model->labels()->detach([$labelId]);
+        $this->broadcastSubjectUpdated($model, $projectId);
         app(ActivityLogService::class)->log(
             projectId:    $projectId,
             userId:       $userId,
@@ -113,6 +117,19 @@ class ManageLabel extends Tool
             viaMcp:       true,
         );
         return "Detached label #{$labelId} from {$kind}.";
+    }
+
+    /**
+     * Broadcast the appropriate "updated" event after a label pivot change so
+     * any open board/note view refetches the affected entity with its new labels.
+     * The events' broadcastWith() reloads the labels relation, so the payload
+     * always reflects the post-change set.
+     */
+    private function broadcastSubjectUpdated(Task|Note $model, int $projectId): void
+    {
+        broadcast($model instanceof Task
+            ? new TaskUpdated($model, $projectId)
+            : new NoteUpdated($model, $projectId));
     }
 
     /** @return array{0: Task|Note|null, 1: string} model + human label, or [null, errorMessage]. */

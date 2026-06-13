@@ -587,6 +587,65 @@ it('creates a label and attaches it to a task', function () {
     expect($task->fresh()->labels()->where('labels.id', $label->id)->exists())->toBeTrue();
 });
 
+it('broadcasts TaskUpdated when a label is attached to or detached from a task', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'X', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+    $label = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'urgent', 'color' => '#ef4444']);
+
+    \Illuminate\Support\Facades\Event::fake([\App\Events\TaskUpdated::class]);
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 40,
+            'params'  => ['name' => 'manage_label', 'arguments' => [
+                'action' => 'attach', 'label' => $label->id, 'task_id' => $task->id,
+            ]],
+        ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Attached'));
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 41,
+            'params'  => ['name' => 'manage_label', 'arguments' => [
+                'action' => 'detach', 'label' => $label->id, 'task_id' => $task->id,
+            ]],
+        ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Detached'));
+
+    \Illuminate\Support\Facades\Event::assertDispatchedTimes(\App\Events\TaskUpdated::class, 2);
+    \Illuminate\Support\Facades\Event::assertDispatched(
+        \App\Events\TaskUpdated::class,
+        fn ($e) => $e->task->id === $task->id && $e->projectId === $project->id,
+    );
+});
+
+it('broadcasts NoteUpdated when a label is attached to a note', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $note = \App\Models\Note::create([
+        'project_id' => $project->id, 'created_by' => $project->owner_id,
+        'title' => 'N', 'content' => '{"type":"doc","content":[]}',
+        'is_pinned' => false, 'position' => 0,
+    ]);
+    $label = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'doc', 'color' => '#3b82f6']);
+
+    \Illuminate\Support\Facades\Event::fake([\App\Events\NoteUpdated::class]);
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 42,
+            'params'  => ['name' => 'manage_label', 'arguments' => [
+                'action' => 'attach', 'label' => $label->id, 'note_id' => $note->id,
+            ]],
+        ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Attached'));
+
+    \Illuminate\Support\Facades\Event::assertDispatched(
+        \App\Events\NoteUpdated::class,
+        fn ($e) => $e->note->id === $note->id && $e->projectId === $project->id,
+    );
+});
+
 it('reorder rejects a foreign section id and mutates nothing', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
 
