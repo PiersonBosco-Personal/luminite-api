@@ -11,7 +11,7 @@ class GetOpenTasks extends Tool
     {
         return [
             'name'        => 'get_open_tasks',
-            'description' => 'List open (non-done) tasks. Call this when you need to know what to work on, or to find a task id before updating/completing it. Filter by status, priority, section_id, or label_id.',
+            'description' => 'List open (non-done) tasks. Call this when you need to know what to work on, or to find a task id before updating/completing it. Each task is listed as "#id [priority] title — status"; pass that #id (the number) as task_id to update_task or complete_task. Filter by status, priority, section_id, or label_id.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [
@@ -60,7 +60,9 @@ class GetOpenTasks extends Tool
 
         $lines = ["Tasks ({$tasks->count()}):"];
         foreach ($tasks as $task) {
-            $parts = ["[{$task->priority}]", $task->title, "— {$task->status}"];
+            // Lead with the numeric id (as #id) so it can be passed straight to
+            // update_task / complete_task — those echo it back the same way.
+            $parts = ["#{$task->id}", "[{$task->priority}]", $task->title, "— {$task->status}"];
 
             if ($task->section) {
                 $parts[] = "— section: {$task->section->name}";

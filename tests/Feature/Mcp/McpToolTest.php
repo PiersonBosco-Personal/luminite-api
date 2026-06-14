@@ -276,6 +276,46 @@ it('caps open tasks in session context and notes the overflow', function () {
         ->and($text)->toContain('… +5 more (use get_open_tasks to see all)');
 });
 
+it('get_open_tasks lists each task with its numeric id so it can be completed', function () {
+    [$raw, , $project] = mcpToken();
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'UserApprovalTest', 'status' => 'todo', 'priority' => 'high', 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 90,
+            'params'  => ['name' => 'get_open_tasks', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('UserApprovalTest')
+        ->and($text)->toContain("#{$task->id}");
+});
+
+it('get_session_context lists open tasks with their numeric id', function () {
+    [$raw, , $project] = mcpToken();
+    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = \App\Models\Task::create([
+        'project_id' => $project->id, 'section_id' => $section->id,
+        'title' => 'Ship it', 'status' => 'in_progress', 'priority' => 'urgent', 'position' => 0,
+    ]);
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 91,
+            'params'  => ['name' => 'get_session_context', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+
+    expect($text)->toContain('Ship it')
+        ->and($text)->toContain("#{$task->id}");
+});
+
 it('annotates read tools as read-only and write tools as not read-only', function () {
     [$raw] = mcpToken([], ['read', 'write']);
 

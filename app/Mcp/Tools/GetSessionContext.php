@@ -112,7 +112,9 @@ class GetSessionContext extends Tool
         } else {
             $lines[] = "Open Tasks ({$tasks->count()}):";
             foreach ($tasks->take(self::MAX_OPEN_TASKS) as $task) {
-                $parts = ["[{$task->priority}]", $task->title, "— {$task->status}"];
+                // Lead with the numeric id (as #id) so Claude can target the task
+                // directly with update_task / complete_task.
+                $parts = ["#{$task->id}", "[{$task->priority}]", $task->title, "— {$task->status}"];
 
                 if ($task->section) {
                     $parts[] = "— section: {$task->section->name}";
