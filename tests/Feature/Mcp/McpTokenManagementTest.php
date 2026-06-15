@@ -1,7 +1,9 @@
 <?php
 
+use App\Events\McpTokenUpdated;
 use App\Models\McpToken;
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 
 // --- Generate ---
 
@@ -125,6 +127,44 @@ it('cannot revoke another user\'s token', function () {
     [$token] = McpToken::generate($other, $project, 'Other Token', ['read']);
 
     $this->deleteJson("/api/v1/mcp-tokens/{$token->id}")->assertStatus(404);
+});
+
+// --- Real-time broadcast ---
+
+it('broadcasts mcp.token.updated on the project channel when a token is generated', function () {
+    Event::fake([McpTokenUpdated::class]);
+
+    $user    = actingAsUser();
+    $project = createProject($user);
+
+    $this->postJson('/api/v1/mcp-tokens', [
+        'name'       => 'My Token',
+        'project_id' => $project->id,
+    ])->assertStatus(201);
+
+    Event::assertDispatched(
+        McpTokenUpdated::class,
+        fn (McpTokenUpdated $e) => $e->projectId === $project->id
+            && $e->action === 'created'
+            && $e->broadcastAs() === 'mcp.token.updated',
+    );
+});
+
+it('broadcasts mcp.token.updated on the project channel when a token is revoked', function () {
+    Event::fake([McpTokenUpdated::class]);
+
+    $user    = actingAsUser();
+    $project = createProject($user);
+    [$token] = McpToken::generate($user, $project, 'Token', ['read']);
+
+    $this->deleteJson("/api/v1/mcp-tokens/{$token->id}")->assertStatus(200);
+
+    Event::assertDispatched(
+        McpTokenUpdated::class,
+        fn (McpTokenUpdated $e) => $e->projectId === $project->id
+            && $e->tokenId === $token->id
+            && $e->action === 'revoked',
+    );
 });
 
 it('returns 401 when not authenticated on list', function () {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\McpTokenUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\McpToken;
 use App\Models\Project;
@@ -53,6 +54,8 @@ class McpTokenController extends Controller
             $validated['scopes'] ?? ['read'],
         );
 
+        broadcast(new McpTokenUpdated($token->project_id, $token->id, 'created'))->toOthers();
+
         return response()->json([
             'data' => [
                 'id'         => $token->id,
@@ -69,7 +72,12 @@ class McpTokenController extends Controller
     {
         abort_if($mcpToken->user_id !== $request->user()->id, 404);
 
+        $projectId = $mcpToken->project_id;
+        $tokenId   = $mcpToken->id;
+
         $mcpToken->delete();
+
+        broadcast(new McpTokenUpdated($projectId, $tokenId, 'revoked'))->toOthers();
 
         return response()->json(['message' => 'Token revoked.']);
     }

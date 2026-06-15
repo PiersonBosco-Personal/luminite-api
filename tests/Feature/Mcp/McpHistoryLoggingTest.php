@@ -1,9 +1,11 @@
 <?php
 
+use App\Events\McpActivityCreated;
 use App\Models\McpHistory;
 use App\Models\McpToken;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 
 it('persists an mcp_history row with arguments cast to array and no updated_at', function () {
     $user    = User::factory()->create();
@@ -48,6 +50,28 @@ it('writes an mcp_history row when any tool is called', function () {
         ->and($row->user_id)->toBe($token->user_id)
         ->and($row->duration_ms)->toBeGreaterThanOrEqual(0)
         ->and($row->result_summary)->not->toBeNull();
+});
+
+it('broadcasts McpActivityCreated on the project channel when a tool is called', function () {
+    Event::fake([McpActivityCreated::class]);
+
+    [$raw, , $project] = mcpToken();
+
+    $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 1,
+            'params'  => ['name' => 'get_open_tasks', 'arguments' => []],
+        ])
+        ->assertStatus(200);
+
+    Event::assertDispatched(
+        McpActivityCreated::class,
+        fn (McpActivityCreated $e) => $e->projectId === $project->id
+            && $e->history->tool === 'get_open_tasks'
+            && $e->broadcastAs() === 'mcp.activity.created',
+    );
 });
 
 it('writes an mcp_history error row when an unknown tool is called', function () {

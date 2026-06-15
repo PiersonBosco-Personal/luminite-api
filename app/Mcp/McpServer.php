@@ -2,6 +2,7 @@
 
 namespace App\Mcp;
 
+use App\Events\McpActivityCreated;
 use App\Mcp\Prompts\Prompt;
 use App\Mcp\Tools\Tool;
 use App\Models\McpHistory;
@@ -188,7 +189,7 @@ class McpServer
         ?string $summary,
         ?string $error,
     ): void {
-        McpHistory::create([
+        $history = McpHistory::create([
             'mcp_token_id'   => $request->attributes->get('mcp_token_id'),
             'user_id'        => $request->attributes->get('mcp_user_id'),
             'project_id'     => $request->attributes->get('mcp_project_id'),
@@ -199,6 +200,12 @@ class McpServer
             'result_summary' => $summary,
             'error_message'  => $error,
         ]);
+
+        // Push the new entry to any open Claude MCP pages in real time. The trigger
+        // is Claude Code (not a browser socket), so broadcast to everyone — no toOthers().
+        if ($history->project_id) {
+            broadcast(new McpActivityCreated($history, (int) $history->project_id));
+        }
     }
 
     private function summarize(string $text): ?string
