@@ -62,3 +62,14 @@ it('returns an actionable reconnect message for an invalid token', function () {
          ->assertJsonPath('error.code', -32001)
          ->assertJsonPath('error.message', fn ($m) => str_contains($m, 'npx luminite-connect'));
 });
+
+it('returns workflow sync instructions in the initialize handshake', function () {
+    [$raw] = mcpToken();
+
+    $this->withToken($raw)
+         ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
+         ->assertStatus(200)
+         ->assertJsonPath('result.instructions', fn ($i) => is_string($i)
+             && str_contains($i, 'update_task')
+             && str_contains($i, 'complete_task'));
+});

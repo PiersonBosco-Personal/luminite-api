@@ -53,8 +53,25 @@ class McpServer
                 'protocolVersion' => $version,
                 'serverInfo'      => ['name' => 'luminite', 'version' => '1.0.0'],
                 'capabilities'    => ['tools' => new \stdClass(), 'prompts' => new \stdClass()],
+                'instructions'    => $this->instructions(),
             ],
         ];
+    }
+
+    /**
+     * Zero-touch second channel for the keep-in-sync workflow. Ships with the
+     * server so it stays current even if a repo's CLAUDE.md block drifts. Lower
+     * priority than CLAUDE.md — belt-and-suspenders, not the primary lever.
+     */
+    private function instructions(): string
+    {
+        return implode("\n", [
+            'This project is tracked in Luminite. Keep it in sync as you work, without being asked:',
+            '- Starting a task → update_task to move it to In Progress.',
+            '- Finishing a task → complete_task.',
+            '- Notable decision (architecture, tradeoff, scope change) → create_note linked with task_id.',
+            'If you are missing project state, call get_session_context first.',
+        ]);
     }
 
     private function toolsList(mixed $id): array
