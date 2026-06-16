@@ -22,21 +22,21 @@ class UpdateTask extends Tool
     public function definition(): array
     {
         return [
-            'name'        => 'update_task',
-            'description' => 'Edit or move an existing task by id. Call this when you start working a task (move it to In Progress), reprioritize, reassign, retitle, edit the description, or re-parent it as a subtask. Pass only the fields you want to change. section accepts an id or name and moves the task (it is appended to the end of the destination). Requires a token with the write scope.',
+            'name' => 'update_task',
+            'description' => 'Edit or move an existing task by id. Pass only the fields you want to change. Moving the section (id or name) places the task at the TOP of the destination and derives its status from that section (Done → done, In Progress → in_progress, anything else → todo). Setting status to in_progress also pulls the task into the In Progress section. A bare status of done does NOT complete a task — complete it by moving it into the Done section (or use complete_task). Requires a token with the write scope.',
             'inputSchema' => [
-                'type'       => 'object',
+                'type' => 'object',
                 'properties' => [
-                    'task_id'     => ['type' => 'integer'],
-                    'title'       => ['type' => 'string'],
+                    'task_id' => ['type' => 'integer'],
+                    'title' => ['type' => 'string'],
                     'description' => ['type' => 'string'],
-                    'status'      => ['type' => 'string', 'enum' => ['todo', 'in_progress', 'done']],
-                    'priority'    => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'urgent']],
-                    'section'     => ['type' => ['string', 'integer'], 'description' => 'Move the task to this section (id or name).'],
-                    'due_date'    => ['type' => 'string', 'description' => 'ISO 8601 date, or empty string to clear.'],
+                    'status' => ['type' => 'string', 'enum' => ['todo', 'in_progress', 'done']],
+                    'priority' => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'urgent']],
+                    'section' => ['type' => ['string', 'integer'], 'description' => 'Move the task to this section (id or name).'],
+                    'due_date' => ['type' => 'string', 'description' => 'ISO 8601 date, or empty string to clear.'],
                     'assignee_id' => ['type' => 'integer', 'description' => 'User id; must be a member of this project.'],
-                    'parent'      => ['type' => ['integer', 'null'], 'description' => 'Parent task id, or null to detach.'],
-                    'labels'      => ['type' => 'array', 'items' => ['type' => ['string', 'integer']], 'description' => 'Replace the task\'s labels with these (ids or names).'],
+                    'parent' => ['type' => ['integer', 'null'], 'description' => 'Parent task id, or null to detach.'],
+                    'labels' => ['type' => 'array', 'items' => ['type' => ['string', 'integer']], 'description' => 'Replace the task\'s labels with these (ids or names).'],
                 ],
                 'required' => ['task_id'],
             ],
@@ -46,16 +46,16 @@ class UpdateTask extends Tool
     public function run(array $args, Request $request): string
     {
         $projectId = $this->projectId($request);
-        $userId    = $this->userId($request);
-        $taskId    = (int) ($args['task_id'] ?? 0);
+        $userId = $this->userId($request);
+        $taskId = (int) ($args['task_id'] ?? 0);
 
         $task = Task::where('project_id', $projectId)->whereKey($taskId)->first();
         if (! $task) {
             return "Error: task #{$taskId} not found in this project.";
         }
 
-        $updates  = [];
-        $changed  = [];
+        $updates = [];
+        $changed = [];
         $labelIds = null;
 
         if (array_key_exists('title', $args) && trim((string) $args['title']) !== '') {
@@ -65,10 +65,6 @@ class UpdateTask extends Tool
         if (array_key_exists('description', $args)) {
             $updates['description'] = $args['description'] !== '' ? $args['description'] : null;
             $changed[] = 'description';
-        }
-        if (in_array($args['status'] ?? null, ['todo', 'in_progress', 'done'], true)) {
-            $updates['status'] = $args['status'];
-            $changed[] = 'status';
         }
         if (in_array($args['priority'] ?? null, ['low', 'medium', 'high', 'urgent'], true)) {
             $updates['priority'] = $args['priority'];
@@ -105,17 +101,30 @@ class UpdateTask extends Tool
             $changed[] = 'parent';
         }
 
+        // --- Section ⟷ status coupling (Rules A/B/C) ---
+        $moveToSectionId = null;
         if (isset($args['section']) && $args['section'] !== '') {
             try {
-                $sectionId = $this->resolveSectionId($projectId, $args['section']);
+                $moveToSectionId = $this->resolveSectionId($projectId, $args['section']);
             } catch (ToolInputException $e) {
                 return "Error: {$e->getMessage()}";
             }
-            if ($sectionId !== $task->section_id) {
-                $updates['section_id'] = $sectionId;
-                $updates['position']   = (int) Task::where('section_id', $sectionId)->max('position') + 1;
-                $changed[] = 'section';
-            }
+        } elseif (($args['status'] ?? null) === 'in_progress') {
+            // Rule B: in_progress pulls the task into the In Progress section if one exists.
+            $moveToSectionId = $this->sectionIdByName($projectId, 'In Progress');
+        }
+
+        $sectionMoved = false;
+        if ($moveToSectionId !== null && $moveToSectionId !== $task->section_id) {
+            $updates['section_id'] = $moveToSectionId;
+            $updates['status'] = $this->statusForSection($projectId, $moveToSectionId); // Rule A wins
+            $changed[] = 'section';
+            $changed[] = 'status';
+            $sectionMoved = true;
+        } elseif (in_array($args['status'] ?? null, ['todo', 'in_progress'], true)) {
+            // No move. Apply an explicit status, but never a bare 'done' (Rule C).
+            $updates['status'] = $args['status'];
+            $changed[] = 'status';
         }
 
         if (array_key_exists('labels', $args)) {
@@ -131,7 +140,12 @@ class UpdateTask extends Tool
             return "No changes: provide at least one field to update on task #{$task->id}.";
         }
 
-        DB::transaction(function () use ($task, $updates, $labelIds) {
+        DB::transaction(function () use ($task, $updates, $labelIds, $sectionMoved, $projectId) {
+            if ($sectionMoved) {
+                // Top-of-section: free position 0 in the destination, place the task there.
+                $this->shiftSectionDown($projectId, $updates['section_id']);
+                $updates['position'] = 0;
+            }
             if ($updates) {
                 $task->update($updates);
             }
@@ -145,16 +159,16 @@ class UpdateTask extends Tool
 
         $changedList = implode(', ', $changed);
         app(ActivityLogService::class)->log(
-            projectId:    $projectId,
-            userId:       $userId,
-            eventType:    'task.updated',
-            subjectType:  'task',
+            projectId: $projectId,
+            userId: $userId,
+            eventType: 'task.updated',
+            subjectType: 'task',
             subjectLabel: $task->title,
-            subjectId:    $task->id,
-            description:  "updated {$task->title} ({$changedList})",
-            viaMcp:       true,
+            subjectId: $task->id,
+            description: "updated {$task->title} ({$changedList})",
+            viaMcp: true,
         );
 
-        return "Updated task #{$task->id}: {$task->title} — changed: {$changedList}";
+        return "Updated \"{$task->title}\" — changed: {$changedList}.";
     }
 }

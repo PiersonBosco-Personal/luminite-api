@@ -1,42 +1,49 @@
 <?php
 
+use App\Events\NoteUpdated;
+use App\Events\TaskUpdated;
+use App\Models\Label;
 use App\Models\McpToken;
+use App\Models\Note;
+use App\Models\Task;
+use App\Models\TaskSection;
 use App\Models\TechStack;
 use App\Models\User;
+use Illuminate\Support\Facades\Event;
 
 it('echoes the client-requested protocol version on initialize', function () {
     [$raw] = mcpToken();
 
     $this->withToken($raw)
-         ->postJson('/api/mcp', [
-             'jsonrpc' => '2.0',
-             'method'  => 'initialize',
-             'id'      => 1,
-             'params'  => ['protocolVersion' => '2025-06-18'],
-         ])
-         ->assertStatus(200)
-         ->assertJsonPath('jsonrpc', '2.0')
-         ->assertJsonPath('result.serverInfo.name', 'luminite')
-         ->assertJsonPath('result.protocolVersion', '2025-06-18');
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method' => 'initialize',
+            'id' => 1,
+            'params' => ['protocolVersion' => '2025-06-18'],
+        ])
+        ->assertStatus(200)
+        ->assertJsonPath('jsonrpc', '2.0')
+        ->assertJsonPath('result.serverInfo.name', 'luminite')
+        ->assertJsonPath('result.protocolVersion', '2025-06-18');
 });
 
 it('falls back to the default protocol version when the client sends none', function () {
     [$raw] = mcpToken();
 
     $this->withToken($raw)
-         ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
-         ->assertStatus(200)
-         ->assertJsonPath('jsonrpc', '2.0')
-         ->assertJsonPath('result.protocolVersion', '2025-06-18');
+        ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'initialize', 'id' => 1])
+        ->assertStatus(200)
+        ->assertJsonPath('jsonrpc', '2.0')
+        ->assertJsonPath('result.protocolVersion', '2025-06-18');
 });
 
 it('lists available tools including get_session_context', function () {
     [$raw] = mcpToken();
 
     $data = $this->withToken($raw)
-         ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'tools/list', 'id' => 2])
-         ->assertStatus(200)
-         ->json('result.tools');
+        ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'tools/list', 'id' => 2])
+        ->assertStatus(200)
+        ->json('result.tools');
 
     expect(collect($data)->pluck('name'))
         ->toContain('get_session_context')
@@ -45,20 +52,20 @@ it('lists available tools including get_session_context', function () {
 
 it('returns project name, description, and status in context', function () {
     [$raw] = mcpToken([
-        'name'        => 'My App',
+        'name' => 'My App',
         'description' => 'A web platform',
-        'status'      => 'active',
+        'status' => 'active',
     ]);
 
     $text = $this->withToken($raw)
-         ->postJson('/api/mcp', [
-             'jsonrpc' => '2.0',
-             'method'  => 'tools/call',
-             'id'      => 3,
-             'params'  => ['name' => 'get_session_context', 'arguments' => []],
-         ])
-         ->assertStatus(200)
-         ->json('result.content.0.text');
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method' => 'tools/call',
+            'id' => 3,
+            'params' => ['name' => 'get_session_context', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
 
     expect($text)->toContain('My App')
         ->and($text)->toContain('A web platform')
@@ -66,31 +73,31 @@ it('returns project name, description, and status in context', function () {
 });
 
 it('returns tech stack entries in context', function () {
-    $user    = User::factory()->create();
+    $user = User::factory()->create();
     $project = createProject($user, ['name' => 'Stack Test']);
-    $root    = TechStack::factory()->create([
+    $root = TechStack::factory()->create([
         'project_id' => $project->id,
-        'name'       => 'Laravel',
-        'version'    => '11',
-        'parent_id'  => null,
+        'name' => 'Laravel',
+        'version' => '11',
+        'parent_id' => null,
     ]);
     TechStack::factory()->create([
         'project_id' => $project->id,
-        'name'       => 'Sanctum',
-        'version'    => null,
-        'parent_id'  => $root->id,
+        'name' => 'Sanctum',
+        'version' => null,
+        'parent_id' => $root->id,
     ]);
     [, $raw] = McpToken::generate($user, $project, 'test', ['read']);
 
     $text = $this->withToken($raw)
-         ->postJson('/api/mcp', [
-             'jsonrpc' => '2.0',
-             'method'  => 'tools/call',
-             'id'      => 4,
-             'params'  => ['name' => 'get_session_context', 'arguments' => []],
-         ])
-         ->assertStatus(200)
-         ->json('result.content.0.text');
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method' => 'tools/call',
+            'id' => 4,
+            'params' => ['name' => 'get_session_context', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
 
     expect($text)->toContain('Laravel (11)')
         ->and($text)->toContain('Sanctum');
@@ -100,45 +107,45 @@ it('returns error for unknown method', function () {
     [$raw] = mcpToken();
 
     $this->withToken($raw)
-         ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'unknown/method', 'id' => 5])
-         ->assertStatus(200)
-         ->assertJsonPath('error.code', -32601);
+        ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'unknown/method', 'id' => 5])
+        ->assertStatus(200)
+        ->assertJsonPath('error.code', -32601);
 });
 
 it('returns error for unknown tool name in tools/call', function () {
     [$raw] = mcpToken();
 
     $this->withToken($raw)
-         ->postJson('/api/mcp', [
-             'jsonrpc' => '2.0',
-             'method'  => 'tools/call',
-             'id'      => 6,
-             'params'  => ['name' => 'nonexistent_tool', 'arguments' => []],
-         ])
-         ->assertStatus(200)
-         ->assertJsonPath('error.code', -32601);
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method' => 'tools/call',
+            'id' => 6,
+            'params' => ['name' => 'nonexistent_tool', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->assertJsonPath('error.code', -32601);
 });
 
 it('get_labels returns label names for the project', function () {
     [$raw, , $project] = mcpToken();
 
-    \App\Models\Label::factory()->create([
+    Label::factory()->create([
         'project_id' => $project->id,
-        'name'       => 'frontend',
-        'color'      => '#3b82f6',
+        'name' => 'frontend',
+        'color' => '#3b82f6',
     ]);
-    \App\Models\Label::factory()->create([
+    Label::factory()->create([
         'project_id' => $project->id,
-        'name'       => 'bug',
-        'color'      => '#ef4444',
+        'name' => 'bug',
+        'color' => '#ef4444',
     ]);
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 10,
-            'params'  => ['name' => 'get_labels', 'arguments' => []],
+            'method' => 'tools/call',
+            'id' => 10,
+            'params' => ['name' => 'get_labels', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -153,9 +160,9 @@ it('get_labels returns no-labels message when project has none', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 11,
-            'params'  => ['name' => 'get_labels', 'arguments' => []],
+            'method' => 'tools/call',
+            'id' => 11,
+            'params' => ['name' => 'get_labels', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -166,19 +173,19 @@ it('get_labels returns no-labels message when project has none', function () {
 it('get_labels does not return labels from other projects', function () {
     [$raw] = mcpToken();
 
-    $otherUser    = \App\Models\User::factory()->create();
+    $otherUser = User::factory()->create();
     $otherProject = createProject($otherUser);
-    \App\Models\Label::factory()->create([
+    Label::factory()->create([
         'project_id' => $otherProject->id,
-        'name'       => 'secret-label',
+        'name' => 'secret-label',
     ]);
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 12,
-            'params'  => ['name' => 'get_labels', 'arguments' => []],
+            'method' => 'tools/call',
+            'id' => 12,
+            'params' => ['name' => 'get_labels', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -189,23 +196,23 @@ it('get_labels does not return labels from other projects', function () {
 it('get_sections returns section names in order', function () {
     [$raw, , $project] = mcpToken();
 
-    \App\Models\TaskSection::factory()->create([
+    TaskSection::factory()->create([
         'project_id' => $project->id,
-        'name'       => 'Backlog',
-        'position'   => 0,
+        'name' => 'Backlog',
+        'position' => 0,
     ]);
-    \App\Models\TaskSection::factory()->create([
+    TaskSection::factory()->create([
         'project_id' => $project->id,
-        'name'       => 'In Progress',
-        'position'   => 1,
+        'name' => 'In Progress',
+        'position' => 1,
     ]);
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 20,
-            'params'  => ['name' => 'get_sections', 'arguments' => []],
+            'method' => 'tools/call',
+            'id' => 20,
+            'params' => ['name' => 'get_sections', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -220,9 +227,9 @@ it('get_sections returns no-sections message when project has none', function ()
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 21,
-            'params'  => ['name' => 'get_sections', 'arguments' => []],
+            'method' => 'tools/call',
+            'id' => 21,
+            'params' => ['name' => 'get_sections', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -233,18 +240,18 @@ it('get_sections returns no-sections message when project has none', function ()
 it('get_sections does not return sections from other projects', function () {
     [$raw] = mcpToken();
 
-    $other = createProject(\App\Models\User::factory()->create());
-    \App\Models\TaskSection::factory()->create([
+    $other = createProject(User::factory()->create());
+    TaskSection::factory()->create([
         'project_id' => $other->id,
-        'name'       => 'secret-section',
+        'name' => 'secret-section',
     ]);
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 22,
-            'params'  => ['name' => 'get_sections', 'arguments' => []],
+            'method' => 'tools/call',
+            'id' => 22,
+            'params' => ['name' => 'get_sections', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -254,12 +261,12 @@ it('get_sections does not return sections from other projects', function () {
 
 it('caps open tasks in session context and notes the overflow', function () {
     [$raw, , $project] = mcpToken();
-    $section = \App\Models\TaskSection::create([
+    $section = TaskSection::create([
         'project_id' => $project->id, 'name' => 'Backlog', 'position' => 0,
     ]);
 
     foreach (range(1, 30) as $n) {
-        \App\Models\Task::create([
+        Task::create([
             'project_id' => $project->id, 'section_id' => $section->id,
             'title' => "Task {$n}", 'status' => 'todo', 'priority' => 'medium', 'position' => $n,
         ]);
@@ -268,7 +275,7 @@ it('caps open tasks in session context and notes the overflow', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 3,
-            'params'  => ['name' => 'get_session_context', 'arguments' => []],
+            'params' => ['name' => 'get_session_context', 'arguments' => []],
         ])
         ->json('result.content.0.text');
 
@@ -278,8 +285,8 @@ it('caps open tasks in session context and notes the overflow', function () {
 
 it('get_open_tasks lists each task with its numeric id so it can be completed', function () {
     [$raw, , $project] = mcpToken();
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'UserApprovalTest', 'status' => 'todo', 'priority' => 'high', 'position' => 0,
     ]);
@@ -287,7 +294,7 @@ it('get_open_tasks lists each task with its numeric id so it can be completed', 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 90,
-            'params'  => ['name' => 'get_open_tasks', 'arguments' => []],
+            'params' => ['name' => 'get_open_tasks', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -298,8 +305,8 @@ it('get_open_tasks lists each task with its numeric id so it can be completed', 
 
 it('get_session_context lists open tasks with their numeric id', function () {
     [$raw, , $project] = mcpToken();
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'Ship it', 'status' => 'in_progress', 'priority' => 'urgent', 'position' => 0,
     ]);
@@ -307,7 +314,7 @@ it('get_session_context lists open tasks with their numeric id', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 91,
-            'params'  => ['name' => 'get_session_context', 'arguments' => []],
+            'params' => ['name' => 'get_session_context', 'arguments' => []],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
@@ -331,9 +338,9 @@ it('annotates read tools as read-only and write tools as not read-only', functio
 
 it('updates a task title, priority, and moves it to another section', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $todo = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $doing = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'In Progress', 'position' => 1]);
-    $task = \App\Models\Task::create([
+    $todo = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $doing = TaskSection::create(['project_id' => $project->id, 'name' => 'In Progress', 'position' => 1]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $todo->id,
         'title' => 'Old title', 'status' => 'todo', 'priority' => 'low', 'position' => 0,
     ]);
@@ -341,11 +348,11 @@ it('updates a task title, priority, and moves it to another section', function (
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 8,
-            'params'  => ['name' => 'update_task', 'arguments' => [
-                'task_id'  => $task->id,
-                'title'    => 'New title',
+            'params' => ['name' => 'update_task', 'arguments' => [
+                'task_id' => $task->id,
+                'title' => 'New title',
                 'priority' => 'high',
-                'section'  => 'In Progress',
+                'section' => 'In Progress',
             ]],
         ])
         ->json('result.content.0.text');
@@ -354,13 +361,13 @@ it('updates a task title, priority, and moves it to another section', function (
     expect($task->title)->toBe('New title')
         ->and($task->priority)->toBe('high')
         ->and($task->section_id)->toBe($doing->id);
-    expect($text)->toContain("Updated task #{$task->id}");
+    expect($text)->toContain('Updated "New title"');
 });
 
 it('rejects update_task without the write scope', function () {
     [$raw, , $project] = mcpToken([], ['read']); // read-only
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'X', 'status' => 'todo', 'priority' => 'low', 'position' => 0,
     ]);
@@ -368,26 +375,26 @@ it('rejects update_task without the write scope', function () {
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 8,
-            'params'  => ['name' => 'update_task', 'arguments' => ['task_id' => $task->id, 'title' => 'Y']],
+            'params' => ['name' => 'update_task', 'arguments' => ['task_id' => $task->id, 'title' => 'Y']],
         ])
         ->assertJsonPath('error.code', -32603);
 });
 
 it('rejects an assignee who is not a project member', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'Some task', 'status' => 'todo', 'priority' => 'low', 'position' => 0,
     ]);
 
-    $outsider = \App\Models\User::factory()->create();
+    $outsider = User::factory()->create();
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 9,
-            'params'  => ['name' => 'update_task', 'arguments' => [
-                'task_id'     => $task->id,
+            'params' => ['name' => 'update_task', 'arguments' => [
+                'task_id' => $task->id,
                 'assignee_id' => $outsider->id,
             ]],
         ])
@@ -400,16 +407,16 @@ it('rejects an assignee who is not a project member', function () {
 
 it('rejects a parent task from a different project', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'My task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
     ]);
 
-    $otherUser    = \App\Models\User::factory()->create();
+    $otherUser = User::factory()->create();
     $otherProject = createProject($otherUser);
-    $otherSection = \App\Models\TaskSection::factory()->create(['project_id' => $otherProject->id, 'position' => 0]);
-    $foreignTask  = \App\Models\Task::create([
+    $otherSection = TaskSection::factory()->create(['project_id' => $otherProject->id, 'position' => 0]);
+    $foreignTask = Task::create([
         'project_id' => $otherProject->id, 'section_id' => $otherSection->id,
         'title' => 'Foreign task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
     ]);
@@ -417,9 +424,9 @@ it('rejects a parent task from a different project', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 10,
-            'params'  => ['name' => 'update_task', 'arguments' => [
+            'params' => ['name' => 'update_task', 'arguments' => [
                 'task_id' => $task->id,
-                'parent'  => $foreignTask->id,
+                'parent' => $foreignTask->id,
             ]],
         ])
         ->assertStatus(200)
@@ -431,27 +438,27 @@ it('rejects a parent task from a different project', function () {
 
 it('replaces a task\'s labels via update_task', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'Labelled task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
     ]);
 
-    $labelA = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'frontend', 'color' => '#111111']);
-    $labelB = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'backend',  'color' => '#222222']);
+    $labelA = Label::create(['project_id' => $project->id, 'name' => 'frontend', 'color' => '#111111']);
+    $labelB = Label::create(['project_id' => $project->id, 'name' => 'backend',  'color' => '#222222']);
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 11,
-            'params'  => ['name' => 'update_task', 'arguments' => [
+            'params' => ['name' => 'update_task', 'arguments' => [
                 'task_id' => $task->id,
-                'labels'  => [$labelA->id, $labelB->id],
+                'labels' => [$labelA->id, $labelB->id],
             ]],
         ])
         ->assertStatus(200)
         ->json('result.content.0.text');
 
-    expect($text)->toContain("Updated task #{$task->id}");
+    expect($text)->toContain('Updated "Labelled task"');
 
     $attachedIds = $task->fresh()->labels->pluck('id')->sort()->values()->all();
     expect($attachedIds)->toHaveCount(2)
@@ -461,8 +468,8 @@ it('replaces a task\'s labels via update_task', function () {
 
 it('creates a note linked to a task', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'Auth', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
     ]);
@@ -470,15 +477,15 @@ it('creates a note linked to a task', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 10,
-            'params'  => ['name' => 'create_note', 'arguments' => [
-                'title'   => 'Auth decision',
+            'params' => ['name' => 'create_note', 'arguments' => [
+                'title' => 'Auth decision',
                 'content' => "Chose Sanctum.\nPermanent tokens.",
                 'task_id' => $task->id,
             ]],
         ])
         ->json('result.content.0.text');
 
-    $note = \App\Models\Note::where('title', 'Auth decision')->first();
+    $note = Note::where('title', 'Auth decision')->first();
     expect($note)->not->toBeNull()
         ->and($note->task_id)->toBe($task->id)
         ->and($note->content)->toContain('Chose Sanctum');
@@ -487,7 +494,7 @@ it('creates a note linked to a task', function () {
 
 it('appends content to an existing note', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $note = \App\Models\Note::create([
+    $note = Note::create([
         'project_id' => $project->id, 'created_by' => $project->owner_id,
         'title' => 'Log', 'content' => '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Day 1"}]}]}',
         'is_pinned' => false, 'position' => 0,
@@ -496,9 +503,9 @@ it('appends content to an existing note', function () {
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 11,
-            'params'  => ['name' => 'update_note', 'arguments' => [
+            'params' => ['name' => 'update_note', 'arguments' => [
                 'note_id' => $note->id,
-                'append'  => 'Day 2',
+                'append' => 'Day 2',
             ]],
         ])
         ->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, "Updated note #{$note->id}"));
@@ -509,7 +516,7 @@ it('appends content to an existing note', function () {
 
 it('content replaces the whole note body', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $note = \App\Models\Note::create([
+    $note = Note::create([
         'project_id' => $project->id, 'created_by' => $project->owner_id,
         'title' => 'Replace Test', 'content' => '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Old body"}]}]}',
         'is_pinned' => false, 'position' => 0,
@@ -518,7 +525,7 @@ it('content replaces the whole note body', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 12,
-            'params'  => ['name' => 'update_note', 'arguments' => [
+            'params' => ['name' => 'update_note', 'arguments' => [
                 'note_id' => $note->id,
                 'content' => 'Fresh body',
             ]],
@@ -535,7 +542,7 @@ it('content replaces the whole note body', function () {
 
 it('no-op returns the No changes message', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $note = \App\Models\Note::create([
+    $note = Note::create([
         'project_id' => $project->id, 'created_by' => $project->owner_id,
         'title' => 'Unchanged', 'content' => '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Original"}]}]}',
         'is_pinned' => false, 'position' => 0,
@@ -545,7 +552,7 @@ it('no-op returns the No changes message', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 13,
-            'params'  => ['name' => 'update_note', 'arguments' => [
+            'params' => ['name' => 'update_note', 'arguments' => [
                 'note_id' => $note->id,
             ]],
         ])
@@ -564,28 +571,28 @@ it('creates a section via manage_section', function () {
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 12,
-            'params'  => ['name' => 'manage_section', 'arguments' => [
+            'params' => ['name' => 'manage_section', 'arguments' => [
                 'action' => 'create', 'name' => 'In Review',
             ]],
         ])
         ->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Created section'));
 
-    expect(\App\Models\TaskSection::where('project_id', $project->id)->where('name', 'In Review')->exists())->toBeTrue();
+    expect(TaskSection::where('project_id', $project->id)->where('name', 'In Review')->exists())->toBeTrue();
 });
 
 it('reorder updates section positions by array order', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
 
-    $sectionA = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'A', 'position' => 0]);
-    $sectionB = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'B', 'position' => 1]);
-    $sectionC = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'C', 'position' => 2]);
+    $sectionA = TaskSection::create(['project_id' => $project->id, 'name' => 'A', 'position' => 0]);
+    $sectionB = TaskSection::create(['project_id' => $project->id, 'name' => 'B', 'position' => 1]);
+    $sectionC = TaskSection::create(['project_id' => $project->id, 'name' => 'C', 'position' => 2]);
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 30,
-            'params'  => ['name' => 'manage_section', 'arguments' => [
+            'params' => ['name' => 'manage_section', 'arguments' => [
                 'action' => 'reorder',
-                'order'  => [$sectionC->id, $sectionA->id, $sectionB->id],
+                'order' => [$sectionC->id, $sectionA->id, $sectionB->id],
             ]],
         ])
         ->assertStatus(200)
@@ -600,8 +607,8 @@ it('reorder updates section positions by array order', function () {
 
 it('creates a label and attaches it to a task', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'X', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
     ]);
@@ -609,17 +616,17 @@ it('creates a label and attaches it to a task', function () {
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 13,
-            'params'  => ['name' => 'manage_label', 'arguments' => [
+            'params' => ['name' => 'manage_label', 'arguments' => [
                 'action' => 'create', 'name' => 'urgent-bug', 'color' => '#ef4444',
             ]],
         ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Created label'));
 
-    $label = \App\Models\Label::where('project_id', $project->id)->where('name', 'urgent-bug')->first();
+    $label = Label::where('project_id', $project->id)->where('name', 'urgent-bug')->first();
 
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 14,
-            'params'  => ['name' => 'manage_label', 'arguments' => [
+            'params' => ['name' => 'manage_label', 'arguments' => [
                 'action' => 'attach', 'label' => $label->id, 'task_id' => $task->id,
             ]],
         ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Attached'));
@@ -629,19 +636,19 @@ it('creates a label and attaches it to a task', function () {
 
 it('broadcasts TaskUpdated when a label is attached to or detached from a task', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $section = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
-    $task = \App\Models\Task::create([
+    $section = TaskSection::create(['project_id' => $project->id, 'name' => 'Todo', 'position' => 0]);
+    $task = Task::create([
         'project_id' => $project->id, 'section_id' => $section->id,
         'title' => 'X', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
     ]);
-    $label = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'urgent', 'color' => '#ef4444']);
+    $label = Label::create(['project_id' => $project->id, 'name' => 'urgent', 'color' => '#ef4444']);
 
-    \Illuminate\Support\Facades\Event::fake([\App\Events\TaskUpdated::class]);
+    Event::fake([TaskUpdated::class]);
 
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 40,
-            'params'  => ['name' => 'manage_label', 'arguments' => [
+            'params' => ['name' => 'manage_label', 'arguments' => [
                 'action' => 'attach', 'label' => $label->id, 'task_id' => $task->id,
             ]],
         ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Attached'));
@@ -649,39 +656,39 @@ it('broadcasts TaskUpdated when a label is attached to or detached from a task',
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 41,
-            'params'  => ['name' => 'manage_label', 'arguments' => [
+            'params' => ['name' => 'manage_label', 'arguments' => [
                 'action' => 'detach', 'label' => $label->id, 'task_id' => $task->id,
             ]],
         ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Detached'));
 
-    \Illuminate\Support\Facades\Event::assertDispatchedTimes(\App\Events\TaskUpdated::class, 2);
-    \Illuminate\Support\Facades\Event::assertDispatched(
-        \App\Events\TaskUpdated::class,
+    Event::assertDispatchedTimes(TaskUpdated::class, 2);
+    Event::assertDispatched(
+        TaskUpdated::class,
         fn ($e) => $e->task->id === $task->id && $e->projectId === $project->id,
     );
 });
 
 it('broadcasts NoteUpdated when a label is attached to a note', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
-    $note = \App\Models\Note::create([
+    $note = Note::create([
         'project_id' => $project->id, 'created_by' => $project->owner_id,
         'title' => 'N', 'content' => '{"type":"doc","content":[]}',
         'is_pinned' => false, 'position' => 0,
     ]);
-    $label = \App\Models\Label::create(['project_id' => $project->id, 'name' => 'doc', 'color' => '#3b82f6']);
+    $label = Label::create(['project_id' => $project->id, 'name' => 'doc', 'color' => '#3b82f6']);
 
-    \Illuminate\Support\Facades\Event::fake([\App\Events\NoteUpdated::class]);
+    Event::fake([NoteUpdated::class]);
 
     $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 42,
-            'params'  => ['name' => 'manage_label', 'arguments' => [
+            'params' => ['name' => 'manage_label', 'arguments' => [
                 'action' => 'attach', 'label' => $label->id, 'note_id' => $note->id,
             ]],
         ])->assertJsonPath('result.content.0.text', fn ($t) => str_contains($t, 'Attached'));
 
-    \Illuminate\Support\Facades\Event::assertDispatched(
-        \App\Events\NoteUpdated::class,
+    Event::assertDispatched(
+        NoteUpdated::class,
         fn ($e) => $e->note->id === $note->id && $e->projectId === $project->id,
     );
 });
@@ -689,19 +696,19 @@ it('broadcasts NoteUpdated when a label is attached to a note', function () {
 it('reorder rejects a foreign section id and mutates nothing', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
 
-    $sectionA = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'A', 'position' => 0]);
-    $sectionB = \App\Models\TaskSection::create(['project_id' => $project->id, 'name' => 'B', 'position' => 1]);
+    $sectionA = TaskSection::create(['project_id' => $project->id, 'name' => 'A', 'position' => 0]);
+    $sectionB = TaskSection::create(['project_id' => $project->id, 'name' => 'B', 'position' => 1]);
 
-    $otherUser    = \App\Models\User::factory()->create();
+    $otherUser = User::factory()->create();
     $otherProject = createProject($otherUser);
-    $sectionF     = \App\Models\TaskSection::create(['project_id' => $otherProject->id, 'name' => 'F', 'position' => 0]);
+    $sectionF = TaskSection::create(['project_id' => $otherProject->id, 'name' => 'F', 'position' => 0]);
 
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 31,
-            'params'  => ['name' => 'manage_section', 'arguments' => [
+            'params' => ['name' => 'manage_section', 'arguments' => [
                 'action' => 'reorder',
-                'order'  => [$sectionB->id, $sectionF->id],
+                'order' => [$sectionB->id, $sectionF->id],
             ]],
         ])
         ->assertStatus(200)
@@ -716,10 +723,10 @@ it('reorder rejects a foreign section id and mutates nothing', function () {
 it('create_note rejects a task_id from another project', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
 
-    $otherUser    = \App\Models\User::factory()->create();
+    $otherUser = User::factory()->create();
     $otherProject = createProject($otherUser);
-    $otherSection = \App\Models\TaskSection::factory()->create(['project_id' => $otherProject->id, 'position' => 0]);
-    $foreignTask  = \App\Models\Task::create([
+    $otherSection = TaskSection::factory()->create(['project_id' => $otherProject->id, 'position' => 0]);
+    $foreignTask = Task::create([
         'project_id' => $otherProject->id, 'section_id' => $otherSection->id,
         'title' => 'Foreign task', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
     ]);
@@ -727,8 +734,8 @@ it('create_note rejects a task_id from another project', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 40,
-            'params'  => ['name' => 'create_note', 'arguments' => [
-                'title'   => 'Hijack note',
+            'params' => ['name' => 'create_note', 'arguments' => [
+                'title' => 'Hijack note',
                 'content' => 'Should not be created',
                 'task_id' => $foreignTask->id,
             ]],
@@ -737,15 +744,15 @@ it('create_note rejects a task_id from another project', function () {
         ->json('result.content.0.text');
 
     expect($text)->toContain('not found in this project');
-    expect(\App\Models\Note::where('title', 'Hijack note')->where('project_id', $project->id)->exists())->toBeFalse();
+    expect(Note::where('title', 'Hijack note')->where('project_id', $project->id)->exists())->toBeFalse();
 });
 
 it('update_note rejects a note_id from another project', function () {
     [$raw] = mcpToken([], ['read', 'write']);
 
-    $otherUser    = \App\Models\User::factory()->create();
+    $otherUser = User::factory()->create();
     $otherProject = createProject($otherUser);
-    $foreignNote  = \App\Models\Note::create([
+    $foreignNote = Note::create([
         'project_id' => $otherProject->id, 'created_by' => $otherUser->id,
         'title' => 'Foreign note', 'content' => 'Original content',
         'is_pinned' => false, 'position' => 0,
@@ -754,9 +761,9 @@ it('update_note rejects a note_id from another project', function () {
     $text = $this->withToken($raw)
         ->postJson('/api/mcp', [
             'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 41,
-            'params'  => ['name' => 'update_note', 'arguments' => [
+            'params' => ['name' => 'update_note', 'arguments' => [
                 'note_id' => $foreignNote->id,
-                'append'  => 'hack',
+                'append' => 'hack',
             ]],
         ])
         ->assertStatus(200)
