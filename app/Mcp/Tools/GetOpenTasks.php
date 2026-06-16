@@ -61,8 +61,9 @@ class GetOpenTasks extends Tool
 
         $lines = ["Tasks ({$tasks->count()}):"];
         foreach ($tasks as $task) {
-            // Lead with the numeric id (as #id) so it can be passed straight to
-            // update_task / complete_task — those echo it back the same way.
+            // Lead with the numeric id (as #id) so it can be passed straight as the
+            // task_id argument to update_task / complete_task. This is the canonical
+            // place Claude reads ids; the write tools refer to tasks by name.
             $parts = ["#{$task->id}", "[{$task->priority}]", $task->title, "— {$task->status}"];
 
             if ($task->section) {
