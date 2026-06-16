@@ -11,15 +11,14 @@ use App\Mcp\Tools\CreateNote;
 use App\Mcp\Tools\CreateTask;
 use App\Mcp\Tools\GetLabels;
 use App\Mcp\Tools\GetOpenTasks;
-use App\Mcp\Tools\ManageLabel;
-use App\Mcp\Tools\ManageSection;
 use App\Mcp\Tools\GetProjectNotes;
 use App\Mcp\Tools\GetRecentActivity;
 use App\Mcp\Tools\GetSections;
 use App\Mcp\Tools\GetSessionContext;
 use App\Mcp\Tools\InitializeProject;
 use App\Mcp\Tools\LogSessionActivity;
-use App\Mcp\Tools\SyncTodos;
+use App\Mcp\Tools\ManageLabel;
+use App\Mcp\Tools\ManageSection;
 use App\Mcp\Tools\UpdateNote;
 use App\Mcp\Tools\UpdateTask;
 use Illuminate\Http\Request;
@@ -29,27 +28,26 @@ class McpController extends Controller
     public function handle(Request $request)
     {
         $payload = $request->json()->all();
-        $server  = new McpServer([
-            new GetSessionContext(),
-            new GetOpenTasks(),
-            new GetProjectNotes(),
-            new GetRecentActivity(),
-            new GetLabels(),
-            new GetSections(),
-            new ManageSection(),
-            new ManageLabel(),
-            new CreateNote(),
-            new UpdateNote(),
-            new CreateTask(),
-            new UpdateTask(),
-            new CompleteTask(),
-            new SyncTodos(),
-            new LogSessionActivity(),
-            new InitializeProject(),
+        $server = new McpServer([
+            new GetSessionContext,
+            new GetOpenTasks,
+            new GetProjectNotes,
+            new GetRecentActivity,
+            new GetLabels,
+            new GetSections,
+            new ManageSection,
+            new ManageLabel,
+            new CreateNote,
+            new UpdateNote,
+            new CreateTask,
+            new UpdateTask,
+            new CompleteTask,
+            new LogSessionActivity,
+            new InitializeProject,
         ], [
-            new InitializeProjectPrompt(),
-            new TriageTodosPrompt(),
-            new WrapUpPrompt(),
+            new InitializeProjectPrompt,
+            new TriageTodosPrompt,
+            new WrapUpPrompt,
         ]);
 
         $response = $server->handle($payload, $request);

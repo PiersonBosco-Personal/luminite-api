@@ -23,8 +23,8 @@ function initFullPayload(array $overrides = []): array
 {
     return array_merge([
         'details' => [
-            'description'        => 'A task manager for small dev teams.',
-            'goals'              => 'Ship v1.',
+            'description' => 'A task manager for small dev teams.',
+            'goals' => 'Ship v1.',
             'architecture_notes' => 'Laravel API + React PWA.',
         ],
         'tech_stack' => [
@@ -32,7 +32,7 @@ function initFullPayload(array $overrides = []): array
             ['name' => 'React', 'version' => '18'],
         ],
         'sections' => ['Backlog', 'In Progress', 'Done'],
-        'labels'   => [
+        'labels' => [
             ['name' => 'bug', 'color' => '#c0392b'],
             ['name' => 'feature', 'color' => '#2ebbcc'],
         ],
@@ -49,9 +49,9 @@ function callInitializeProject(string $raw, array $arguments)
 {
     return test()->withToken($raw)->postJson('/api/mcp', [
         'jsonrpc' => '2.0',
-        'method'  => 'tools/call',
-        'id'      => 1,
-        'params'  => ['name' => 'initialize_project', 'arguments' => $arguments],
+        'method' => 'tools/call',
+        'id' => 1,
+        'params' => ['name' => 'initialize_project', 'arguments' => $arguments],
     ]);
 }
 
@@ -77,13 +77,13 @@ it('initializes a blank project end to end', function () {
 
     // tech stack: parent/child link
     $laravel = TechStack::where('project_id', $project->id)->where('name', 'Laravel')->first();
-    $reverb  = TechStack::where('project_id', $project->id)->where('name', 'Reverb')->first();
+    $reverb = TechStack::where('project_id', $project->id)->where('name', 'Reverb')->first();
     expect(TechStack::where('project_id', $project->id)->count())->toBe(3)
         ->and($reverb->parent_id)->toBe($laravel->id);
 
-    // sections in payload order
+    // sections in payload order — Triage inbox is always seeded last when the payload omits it
     $names = TaskSection::where('project_id', $project->id)->orderBy('position')->pluck('name')->all();
-    expect($names)->toBe(['Backlog', 'In Progress', 'Done']);
+    expect($names)->toBe(['Backlog', 'In Progress', 'Done', 'Triage']);
 
     // labels with their hex colors
     expect(Label::where('project_id', $project->id)->where('name', 'bug')->first()->color)->toBe('#c0392b');
@@ -152,13 +152,13 @@ it('refuses when the project is not blank', function (callable $setup) {
         ->and(Task::where('project_id', $project->id)->where('title', 'Set up CI')->exists())->toBeFalse()
         ->and(TechStack::where('project_id', $project->id)->where('name', 'Laravel')->exists())->toBeFalse();
 })->with([
-    'description'        => fn ($p) => $p->update(['description' => 'existing']),
-    'goals'              => fn ($p) => $p->update(['goals' => 'existing']),
+    'description' => fn ($p) => $p->update(['description' => 'existing']),
+    'goals' => fn ($p) => $p->update(['goals' => 'existing']),
     'architecture_notes' => fn ($p) => $p->update(['architecture_notes' => 'existing']),
-    'tech stack'         => fn ($p) => TechStack::factory()->create(['project_id' => $p->id]),
-    'sections'           => fn ($p) => TaskSection::factory()->create(['project_id' => $p->id]),
-    'labels'             => fn ($p) => Label::factory()->create(['project_id' => $p->id]),
-    'tasks'              => fn ($p) => Task::factory()->create([
+    'tech stack' => fn ($p) => TechStack::factory()->create(['project_id' => $p->id]),
+    'sections' => fn ($p) => TaskSection::factory()->create(['project_id' => $p->id]),
+    'labels' => fn ($p) => Label::factory()->create(['project_id' => $p->id]),
+    'tasks' => fn ($p) => Task::factory()->create([
         'project_id' => $p->id,
         'section_id' => TaskSection::factory()->create(['project_id' => $p->id])->id,
     ]),
@@ -171,12 +171,12 @@ it('does not treat existing widgets as non-blank, and skips already-placed slugs
     $board = Widget::where('slug', 'tasks_board')->first();
     DashboardWidget::create([
         'project_id' => $project->id,
-        'user_id'    => $user->id,
-        'widget_id'  => $board->id,
-        'grid_x'     => 0,
-        'grid_y'     => 0,
-        'grid_w'     => $board->default_w,
-        'grid_h'     => $board->default_h,
+        'user_id' => $user->id,
+        'widget_id' => $board->id,
+        'grid_x' => 0,
+        'grid_y' => 0,
+        'grid_w' => $board->default_w,
+        'grid_h' => $board->default_h,
     ]);
 
     $text = callInitializeProject($raw, initFullPayload())
@@ -192,7 +192,7 @@ it('does not treat existing widgets as non-blank, and skips already-placed slugs
         ->count())->toBe(1); // not duplicated
 
     // the new widget stacks below the pre-existing one
-    $feed   = Widget::where('slug', 'activity_feed')->first();
+    $feed = Widget::where('slug', 'activity_feed')->first();
     $placed = DashboardWidget::where('project_id', $project->id)
         ->where('user_id', $user->id)
         ->where('widget_id', $feed->id)
@@ -240,9 +240,23 @@ it('rejects invalid payloads end to end and writes nothing', function (array $ov
         ->and(TaskSection::where('project_id', $project->id)->exists())->toBeFalse()
         ->and(Task::where('project_id', $project->id)->exists())->toBeFalse();
 })->with([
-    'over cap'         => [['sections' => ['a', 'b', 'c', 'd', 'e', 'f', 'g'], 'tasks' => []], 'sections exceeds 6'],
+    'over cap' => [['sections' => ['a', 'b', 'c', 'd', 'e', 'f', 'g'], 'tasks' => []], 'sections exceeds 6'],
     'bad color format' => [['labels' => [['name' => 'x', 'color' => 'red']], 'tasks' => []], 'labels[0].color'],
-    'index range'      => [['tasks' => [['title' => 't', 'section' => 99]]], 'tasks[0].section'],
-    'unknown key'      => [['hax' => true], "Unknown key 'hax'"],
-    'unknown widget'   => [['widgets' => ['not_a_widget']], 'widgets[0]'],
+    'index range' => [['tasks' => [['title' => 't', 'section' => 99]]], 'tasks[0].section'],
+    'unknown key' => [['hax' => true], "Unknown key 'hax'"],
+    'unknown widget' => [['widgets' => ['not_a_widget']], 'widgets[0]'],
 ]);
+
+it('initialize_project seeds a Triage inbox when the payload omits one', function () {
+    [$raw, , $project] = initBlankToken();
+
+    $this->withToken($raw)->postJson('/api/mcp', [
+        'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 70,
+        'params' => ['name' => 'initialize_project', 'arguments' => [
+            'details' => ['description' => 'A project'],
+            'sections' => ['Backlog', 'Done'],
+        ]],
+    ])->assertStatus(200);
+
+    expect(TaskSection::where('project_id', $project->id)->whereRaw('LOWER(name) = ?', ['triage'])->exists())->toBeTrue();
+});

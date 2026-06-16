@@ -25,93 +25,93 @@ class InitializeProject extends Tool
     public function definition(): array
     {
         return [
-            'name'        => 'initialize_project',
+            'name' => 'initialize_project',
             'description' => 'One-shot initialization of a BLANK project: sets the Details page (description, goals, architecture notes), tech stack, board sections, labels, tasks, and the calling user\'s starter dashboard widgets — atomically. Refuses if the project already has any of those (existing widgets do not block). task.section and task.labels are integer INDEXES into the sections/labels arrays of this same payload. Requires a token with the write scope.',
             'inputSchema' => [
-                'type'       => 'object',
+                'type' => 'object',
                 'properties' => [
                     'details' => [
-                        'type'       => 'object',
+                        'type' => 'object',
                         'properties' => [
-                            'description'        => ['type' => 'string', 'maxLength' => 5000],
-                            'goals'              => ['type' => 'string', 'maxLength' => 5000],
+                            'description' => ['type' => 'string', 'maxLength' => 5000],
+                            'goals' => ['type' => 'string', 'maxLength' => 5000],
                             'architecture_notes' => ['type' => 'string', 'maxLength' => 5000],
                         ],
-                        'required'             => ['description'],
+                        'required' => ['description'],
                         'additionalProperties' => false,
                     ],
                     'tech_stack' => [
-                        'type'        => 'array',
+                        'type' => 'array',
                         'description' => 'Max 30 entries total (parents + children).',
-                        'items'       => [
-                            'type'       => 'object',
+                        'items' => [
+                            'type' => 'object',
                             'properties' => [
-                                'name'     => ['type' => 'string', 'maxLength' => 100],
-                                'version'  => ['type' => 'string', 'maxLength' => 50],
+                                'name' => ['type' => 'string', 'maxLength' => 100],
+                                'version' => ['type' => 'string', 'maxLength' => 50],
                                 'children' => [
-                                    'type'  => 'array',
+                                    'type' => 'array',
                                     'items' => [
-                                        'type'       => 'object',
+                                        'type' => 'object',
                                         'properties' => [
-                                            'name'    => ['type' => 'string', 'maxLength' => 100],
+                                            'name' => ['type' => 'string', 'maxLength' => 100],
                                             'version' => ['type' => 'string', 'maxLength' => 50],
                                         ],
-                                        'required'             => ['name'],
+                                        'required' => ['name'],
                                         'additionalProperties' => false,
                                     ],
                                 ],
                             ],
-                            'required'             => ['name'],
+                            'required' => ['name'],
                             'additionalProperties' => false,
                         ],
                     ],
                     'sections' => [
-                        'type'        => 'array',
-                        'maxItems'    => 6,
+                        'type' => 'array',
+                        'maxItems' => 6,
                         'description' => 'Board sections; array order = board order.',
-                        'items'       => ['type' => 'string', 'maxLength' => 100],
+                        'items' => ['type' => 'string', 'maxLength' => 100],
                     ],
                     'labels' => [
-                        'type'     => 'array',
+                        'type' => 'array',
                         'maxItems' => 10,
-                        'items'    => [
-                            'type'       => 'object',
+                        'items' => [
+                            'type' => 'object',
                             'properties' => [
-                                'name'  => ['type' => 'string', 'maxLength' => 50],
+                                'name' => ['type' => 'string', 'maxLength' => 50],
                                 'color' => ['type' => 'string', 'pattern' => '^#[0-9a-fA-F]{6}$', 'description' => 'Any #RRGGBB hex.'],
                             ],
-                            'required'             => ['name', 'color'],
+                            'required' => ['name', 'color'],
                             'additionalProperties' => false,
                         ],
                     ],
                     'tasks' => [
-                        'type'     => 'array',
+                        'type' => 'array',
                         'maxItems' => 25,
-                        'items'    => [
-                            'type'       => 'object',
+                        'items' => [
+                            'type' => 'object',
                             'properties' => [
-                                'title'       => ['type' => 'string', 'maxLength' => 200],
+                                'title' => ['type' => 'string', 'maxLength' => 200],
                                 'description' => ['type' => 'string', 'maxLength' => 2000],
-                                'priority'    => ['type' => 'string', 'enum' => InitializeProjectPayload::PRIORITIES],
-                                'section'     => ['type' => 'integer', 'description' => 'Index into sections[] of this payload.'],
-                                'labels'      => [
-                                    'type'        => 'array',
+                                'priority' => ['type' => 'string', 'enum' => InitializeProjectPayload::PRIORITIES],
+                                'section' => ['type' => 'integer', 'description' => 'Index into sections[] of this payload.'],
+                                'labels' => [
+                                    'type' => 'array',
                                     'description' => 'Indexes into labels[] of this payload.',
-                                    'items'       => ['type' => 'integer'],
+                                    'items' => ['type' => 'integer'],
                                 ],
                             ],
-                            'required'             => ['title', 'section'],
+                            'required' => ['title', 'section'],
                             'additionalProperties' => false,
                         ],
                     ],
                     'widgets' => [
-                        'type'        => 'array',
-                        'maxItems'    => 6,
+                        'type' => 'array',
+                        'maxItems' => 6,
                         'description' => 'Widget catalog slugs; validated against the widgets table.',
-                        'items'       => ['type' => 'string'],
+                        'items' => ['type' => 'string'],
                     ],
                 ],
-                'required'             => ['details'],
+                'required' => ['details'],
                 'additionalProperties' => false,
             ],
         ];
@@ -120,7 +120,7 @@ class InitializeProject extends Tool
     public function run(array $args, Request $request): string
     {
         $projectId = $this->projectId($request);
-        $userId    = $this->userId($request);
+        $userId = $this->userId($request);
 
         $project = Project::find($projectId);
         if (! $project) {
@@ -153,15 +153,15 @@ class InitializeProject extends Tool
 
             // 2. Validate — every cap, enum, index range, unknown-key rule.
             try {
-                $payload = (new InitializeProjectPayload())->validate($args, $validSlugs);
+                $payload = (new InitializeProjectPayload)->validate($args, $validSlugs);
             } catch (ToolInputException $e) {
-                return ['error' => 'Error: ' . $e->getMessage()];
+                return ['error' => 'Error: '.$e->getMessage()];
             }
 
             // 3a. Project details
             $project->update([
-                'description'        => $payload['details']['description'],
-                'goals'              => $payload['details']['goals'] !== '' ? $payload['details']['goals'] : null,
+                'description' => $payload['details']['description'],
+                'goals' => $payload['details']['goals'] !== '' ? $payload['details']['goals'] : null,
                 'architecture_notes' => $payload['details']['architecture_notes'] !== '' ? $payload['details']['architecture_notes'] : null,
             ]);
 
@@ -170,17 +170,17 @@ class InitializeProject extends Tool
             foreach ($payload['tech_stack'] as $entry) {
                 $parent = TechStack::create([
                     'project_id' => $projectId,
-                    'name'       => $entry['name'],
-                    'version'    => $entry['version'],
+                    'name' => $entry['name'],
+                    'version' => $entry['version'],
                 ]);
                 $stackCount++;
 
                 foreach ($entry['children'] as $child) {
                     TechStack::create([
                         'project_id' => $projectId,
-                        'parent_id'  => $parent->id,
-                        'name'       => $child['name'],
-                        'version'    => $child['version'],
+                        'parent_id' => $parent->id,
+                        'name' => $child['name'],
+                        'version' => $child['version'],
                     ]);
                     $stackCount++;
                 }
@@ -191,9 +191,28 @@ class InitializeProject extends Tool
             foreach ($payload['sections'] as $position => $name) {
                 $sectionIds[] = TaskSection::create([
                     'project_id' => $projectId,
-                    'name'       => $name,
-                    'position'   => $position,
+                    'name' => $name,
+                    'position' => $position,
                 ])->id;
+            }
+
+            // 3c-bis. Always ensure a Triage inbox exists — the default landing
+            // section for unsorted tasks created later via create_task.
+            $triageSeeded = false;
+            $hasTriage = false;
+            foreach ($payload['sections'] as $name) {
+                if (strtolower($name) === 'triage') {
+                    $hasTriage = true;
+                    break;
+                }
+            }
+            if (! $hasTriage) {
+                TaskSection::create([
+                    'project_id' => $projectId,
+                    'name' => 'Triage',
+                    'position' => count($sectionIds),
+                ]);
+                $triageSeeded = true;
             }
 
             // 3d. Labels
@@ -201,27 +220,27 @@ class InitializeProject extends Tool
             foreach ($payload['labels'] as $label) {
                 $labelIds[] = Label::create([
                     'project_id' => $projectId,
-                    'name'       => $label['name'],
-                    'color'      => $label['color'],
+                    'name' => $label['name'],
+                    'color' => $label['color'],
                 ])->id;
             }
 
             // 3e. Tasks — position within each section = payload order
-            $taskCount        = 0;
+            $taskCount = 0;
             $sectionPositions = [];
             foreach ($payload['tasks'] as $task) {
                 $position = $sectionPositions[$task['section']] ?? 0;
                 $sectionPositions[$task['section']] = $position + 1;
 
                 $model = Task::create([
-                    'project_id'  => $projectId,
-                    'section_id'  => $sectionIds[$task['section']],
-                    'created_by'  => $userId,
-                    'title'       => $task['title'],
+                    'project_id' => $projectId,
+                    'section_id' => $sectionIds[$task['section']],
+                    'created_by' => $userId,
+                    'title' => $task['title'],
                     'description' => $task['description'],
-                    'status'      => 'todo',
-                    'priority'    => $task['priority'],
-                    'position'    => $position,
+                    'status' => 'todo',
+                    'priority' => $task['priority'],
+                    'position' => $position,
                 ]);
 
                 if ($task['labels']) {
@@ -258,12 +277,12 @@ class InitializeProject extends Tool
 
                     DashboardWidget::create([
                         'project_id' => $projectId,
-                        'user_id'    => $userId,
-                        'widget_id'  => $widget->id,
-                        'grid_x'     => 0,
-                        'grid_y'     => $maxY,
-                        'grid_w'     => $widget->default_w,
-                        'grid_h'     => $widget->default_h,
+                        'user_id' => $userId,
+                        'widget_id' => $widget->id,
+                        'grid_x' => 0,
+                        'grid_y' => $maxY,
+                        'grid_w' => $widget->default_w,
+                        'grid_h' => $widget->default_h,
                     ]);
 
                     $maxY += $widget->default_h;
@@ -273,11 +292,12 @@ class InitializeProject extends Tool
 
             return [
                 'counts' => [
-                    'stack'    => $stackCount,
+                    'stack' => $stackCount,
                     'sections' => count($sectionIds),
-                    'labels'   => count($labelIds),
-                    'tasks'    => $taskCount,
-                    'widgets'  => $placed,
+                    'labels' => count($labelIds),
+                    'tasks' => $taskCount,
+                    'widgets' => $placed,
+                    'triage' => $triageSeeded,
                 ],
             ];
         });
@@ -296,18 +316,19 @@ class InitializeProject extends Tool
         // 5. One activity row total — keeps the feed readable.
         $c = $result['counts'];
         app(ActivityLogService::class)->log(
-            projectId:    $projectId,
-            userId:       $userId,
-            eventType:    'project.initialized',
-            subjectType:  'project',
+            projectId: $projectId,
+            userId: $userId,
+            eventType: 'project.initialized',
+            subjectType: 'project',
             subjectLabel: $project->name,
-            subjectId:    $projectId,
-            description:  "initialized project via MCP: {$c['sections']} sections, {$c['tasks']} tasks, {$c['stack']} tech stack entries",
-            viaMcp:       true,
+            subjectId: $projectId,
+            description: "initialized project via MCP: {$c['sections']} sections, {$c['tasks']} tasks, {$c['stack']} tech stack entries",
+            viaMcp: true,
         );
 
         return "Initialized project: details set, {$c['stack']} tech stack entries, "
-            . "{$c['sections']} sections, {$c['labels']} labels, {$c['tasks']} tasks, "
-            . "{$c['widgets']} widgets placed.";
+            ."{$c['sections']} sections, {$c['labels']} labels, {$c['tasks']} tasks, "
+            ."{$c['widgets']} widgets placed"
+            .($c['triage'] ? ', plus a Triage inbox section.' : '.');
     }
 }
