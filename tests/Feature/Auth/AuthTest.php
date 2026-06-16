@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
 
 // --- Register ---
@@ -15,6 +16,21 @@ it('registers a new user and returns a token', function () {
 
     $response->assertStatus(201)
         ->assertJsonStructure(['token', 'user' => ['id', 'name', 'email']]);
+});
+
+it('persists the new user with a hashed password on register', function () {
+    $this->postJson('/api/v1/auth/register', [
+        'name'                  => 'Jane Dev',
+        'email'                 => 'jane@example.com',
+        'password'              => 'password123',
+        'password_confirmation' => 'password123',
+    ])->assertStatus(201);
+
+    $user = User::where('email', 'jane@example.com')->first();
+
+    expect($user)->not->toBeNull();
+    expect($user->password)->not->toBe('password123');
+    expect(Hash::check('password123', $user->password))->toBeTrue();
 });
 
 it('returns 422 when name is missing on register', function () {
