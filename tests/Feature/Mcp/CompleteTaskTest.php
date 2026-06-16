@@ -201,3 +201,18 @@ it('complete_task moves the task to the top of Done', function () {
         ->and($text)->toContain('"Finish me"')
         ->and($text)->not->toContain('#');
 });
+
+it('complete_task accepts very long completion notes without overflowing', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $done = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Done', 'position' => 0]);
+    $task = Task::create(['project_id' => $project->id, 'section_id' => $done->id, 'title' => 'T', 'status' => 'in_progress', 'priority' => 'medium', 'position' => 0]);
+
+    $longNote = str_repeat('Detailed completion summary. ', 60); // ~1740 chars, well past the old 500 cap
+
+    $this->withToken($raw)->postJson('/api/mcp', [
+        'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 60,
+        'params' => ['name' => 'complete_task', 'arguments' => ['task_id' => $task->id, 'notes' => $longNote]],
+    ])->assertStatus(200);
+
+    expect(ActivityLog::where('subject_id', $task->id)->where('event_type', 'task.completed')->exists())->toBeTrue();
+});
