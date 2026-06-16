@@ -4,21 +4,22 @@ namespace App\Mcp\Tools;
 
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class GetOpenTasks extends Tool
 {
     public function definition(): array
     {
         return [
-            'name'        => 'get_open_tasks',
-            'description' => 'List open (non-done) tasks. Call this when you need to know what to work on, or to find a task id before updating/completing it. Each task is listed as "#id [priority] title — status"; pass that #id (the number) as task_id to update_task or complete_task. Filter by status, priority, section_id, or label_id.',
+            'name' => 'get_open_tasks',
+            'description' => 'List open (non-done) tasks. Call this when you need to know what to work on, or to find a task id before updating/completing it. Each task is listed as "#id [priority] title — status"; pass that #id (the number) as task_id to update_task or complete_task. Filter by status, priority, section_id, or label_id. When you mention a task to the user, refer to it by name — use the #id only as the task_id argument.',
             'inputSchema' => [
-                'type'       => 'object',
+                'type' => 'object',
                 'properties' => [
-                    'status'     => ['type' => 'string', 'enum' => ['todo', 'in_progress', 'done', 'blocked']],
-                    'priority'   => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'urgent']],
+                    'status' => ['type' => 'string', 'enum' => ['todo', 'in_progress', 'done', 'blocked']],
+                    'priority' => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'urgent']],
                     'section_id' => ['type' => 'integer'],
-                    'label_id'   => ['type' => 'integer'],
+                    'label_id' => ['type' => 'integer'],
                 ],
                 'required' => [],
             ],
@@ -27,7 +28,7 @@ class GetOpenTasks extends Tool
 
     public function run(array $args, Request $request): string
     {
-        $query = Task::with(['section', 'assignee', 'labels'])
+        $query = Task::with(['section', 'assignee', 'labels', 'subtasks' => fn ($q) => $q->orderBy('position')])
             ->where('project_id', $this->projectId($request))
             ->whereNull('parent_task_id');
 
@@ -71,13 +72,19 @@ class GetOpenTasks extends Tool
                 $parts[] = "— assigned: {$task->assignee->name}";
             }
             if ($task->labels->isNotEmpty()) {
-                $parts[] = '— labels: ' . $task->labels->pluck('name')->join(', ');
+                $parts[] = '— labels: '.$task->labels->pluck('name')->join(', ');
             }
             if ($task->due_date) {
                 $parts[] = "— due: {$task->due_date}";
             }
 
-            $lines[] = '- ' . implode(' ', $parts);
+            $lines[] = '- '.implode(' ', $parts);
+            if (filled($task->description)) {
+                $lines[] = '    ↳ '.Str::limit((string) $task->description, 140);
+            }
+            foreach ($task->subtasks as $subtask) {
+                $lines[] = "    ↳ subtask: {$subtask->title} — {$subtask->status}";
+            }
         }
 
         return implode("\n", $lines);
