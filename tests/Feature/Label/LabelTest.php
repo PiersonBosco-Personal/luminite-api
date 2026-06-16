@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ActivityLog;
 use App\Models\Label;
 use App\Models\Note;
 use App\Models\Task;
@@ -79,6 +80,23 @@ it('returns 404 when updating a label from another project', function () {
 
     $this->putJson("/api/v1/projects/{$project->id}/labels/{$label->id}", ['name' => 'X'])
          ->assertStatus(404);
+});
+
+it('logs activity when a label is updated', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $label   = Label::factory()->create(['project_id' => $project->id]);
+
+    $this->putJson("/api/v1/projects/{$project->id}/labels/{$label->id}", [
+        'name' => 'Renamed',
+    ])->assertStatus(200);
+
+    expect(
+        ActivityLog::where('project_id', $project->id)
+            ->where('event_type', 'label.updated')
+            ->where('subject_id', $label->id)
+            ->exists()
+    )->toBeTrue();
 });
 
 // --- Destroy ---
@@ -207,4 +225,71 @@ it('member can detach a label from a note', function () {
     ])->assertStatus(200);
 
     expect($note->labels()->where('label_id', $label->id)->exists())->toBeFalse();
+});
+
+// --- Usage counts (index) ---
+
+it('includes tasks_count and notes_count on the index response', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $section = TaskSection::factory()->create(['project_id' => $project->id]);
+    $label   = Label::factory()->create(['project_id' => $project->id]);
+
+    $task = Task::factory()->create(['project_id' => $project->id, 'section_id' => $section->id]);
+    $note = Note::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+    $task->labels()->attach($label->id);
+    $note->labels()->attach($label->id);
+
+    $this->getJson("/api/v1/projects/{$project->id}/labels")
+         ->assertStatus(200)
+         ->assertJsonFragment(['tasks_count' => 1, 'notes_count' => 1]);
+});
+
+// --- Name uniqueness (store) ---
+
+it('returns 422 when creating a duplicate label name in the same project', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    Label::factory()->create(['project_id' => $project->id, 'name' => 'Bug']);
+
+    $this->postJson("/api/v1/projects/{$project->id}/labels", [
+        'name'  => 'Bug',
+        'color' => '#ef4444',
+    ])->assertStatus(422);
+});
+
+it('allows the same label name in a different project', function () {
+    $user     = actingAsUser();
+    $project  = createProject($user);
+    $project2 = createProject($user);
+    Label::factory()->create(['project_id' => $project2->id, 'name' => 'Bug']);
+
+    $this->postJson("/api/v1/projects/{$project->id}/labels", [
+        'name'  => 'Bug',
+        'color' => '#ef4444',
+    ])->assertStatus(201);
+});
+
+// --- Name uniqueness (update) ---
+
+it('returns 422 when renaming a label to a name used by another label in the project', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    Label::factory()->create(['project_id' => $project->id, 'name' => 'Bug']);
+    $label   = Label::factory()->create(['project_id' => $project->id, 'name' => 'Feature']);
+
+    $this->putJson("/api/v1/projects/{$project->id}/labels/{$label->id}", [
+        'name' => 'Bug',
+    ])->assertStatus(422);
+});
+
+it('allows updating a label while keeping its own name', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $label   = Label::factory()->create(['project_id' => $project->id, 'name' => 'Bug']);
+
+    $this->putJson("/api/v1/projects/{$project->id}/labels/{$label->id}", [
+        'name'  => 'Bug',
+        'color' => '#000000',
+    ])->assertStatus(200);
 });

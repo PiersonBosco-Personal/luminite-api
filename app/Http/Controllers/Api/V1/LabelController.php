@@ -23,7 +23,9 @@ class LabelController extends Controller
 
     public function index(Project $project)
     {
-        return LabelResource::collection($project->labels);
+        return LabelResource::collection(
+            $project->labels()->withCount(['tasks', 'notes'])->get()
+        );
     }
 
     public function store(StoreLabelRequest $request, Project $project)
@@ -52,6 +54,16 @@ class LabelController extends Controller
         $label->update($request->validated());
 
         broadcast(new LabelUpdated($label, $project->id))->toOthers();
+
+        $this->activity->log(
+            projectId:    $project->id,
+            userId:       auth()->id(),
+            eventType:    'label.updated',
+            subjectType:  'label',
+            subjectLabel: $label->name,
+            subjectId:    $label->id,
+            description:  auth()->user()->name . " updated label {$label->name}",
+        );
 
         return new LabelResource($label);
     }
