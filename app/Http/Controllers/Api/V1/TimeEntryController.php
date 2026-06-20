@@ -190,50 +190,11 @@ class TimeEntryController extends Controller
             ];
         })->values()->all();
 
-        // Attach per-user work-type breakdown when grouping by user; null otherwise.
+        // Attach per-group work-type breakdown when grouping by user or task; null otherwise.
         if ($groupBy === 'user') {
-            $breakdownQuery = DB::table('time_entries')
-                ->where('project_id', $project->id)
-                ->whereNotNull('duration_minutes');
-
-            if ($request->filled('from')) {
-                $breakdownQuery->whereDate('logged_at', '>=', $request->date('from'));
-            }
-            if ($request->filled('to')) {
-                $breakdownQuery->whereDate('logged_at', '<=', $request->date('to'));
-            }
-
-            $breakdown = $breakdownQuery
-                ->selectRaw('user_id, work_type_id, SUM(duration_minutes) as minutes')
-                ->groupBy('user_id', 'work_type_id')
-                ->get();
-
-            $workTypeIds = $breakdown->pluck('work_type_id')->filter()->unique();
-            $workTypes   = WorkType::whereIn('id', $workTypeIds)->get()->keyBy('id');
-
-            foreach ($groups as &$group) {
-                $userTotal = $group['minutes'];
-                $subGroups = $breakdown
-                    ->where('user_id', $group['id'])
-                    ->map(function ($row) use ($workTypes, $userTotal) {
-                        $wt = $row->work_type_id !== null ? $workTypes->get($row->work_type_id) : null;
-                        return [
-                            'id'      => $row->work_type_id !== null ? (int) $row->work_type_id : null,
-                            'label'   => $wt?->name ?? 'No work type',
-                            'minutes' => (int) $row->minutes,
-                            'color'   => $wt?->color,
-                            'percent' => $userTotal > 0
-                                ? round($row->minutes / $userTotal * 100, 2)
-                                : 0.0,
-                        ];
-                    })
-                    ->sortBy([['minutes', 'desc'], ['label', 'asc']])
-                    ->values()
-                    ->all();
-
-                $group['sub_groups'] = $subGroups;
-            }
-            unset($group);
+            $this->attachWorkTypeBreakdown($groups, $project, $request, 'user_id');
+        } elseif ($groupBy === 'task') {
+            $this->attachWorkTypeBreakdown($groups, $project, $request, 'task_id');
         } else {
             foreach ($groups as &$group) {
                 $group['sub_groups'] = null;
@@ -248,6 +209,58 @@ class TimeEntryController extends Controller
             'group_by'      => $groupBy,
             'groups'        => $groups,
         ]);
+    }
+
+    /**
+     * Attach a per-group work-type breakdown (`sub_groups`) to each group, in place.
+     * $column is 'user_id' or 'task_id' — internal literals only, never user input.
+     */
+    private function attachWorkTypeBreakdown(
+        array &$groups,
+        Project $project,
+        Request $request,
+        string $column,
+    ): void {
+        $breakdownQuery = DB::table('time_entries')
+            ->where('project_id', $project->id)
+            ->whereNotNull('duration_minutes');
+
+        if ($request->filled('from')) {
+            $breakdownQuery->whereDate('logged_at', '>=', $request->date('from'));
+        }
+        if ($request->filled('to')) {
+            $breakdownQuery->whereDate('logged_at', '<=', $request->date('to'));
+        }
+
+        $breakdown = $breakdownQuery
+            ->selectRaw("{$column}, work_type_id, SUM(duration_minutes) as minutes")
+            ->groupBy($column, 'work_type_id')
+            ->get();
+
+        $workTypeIds = $breakdown->pluck('work_type_id')->filter()->unique();
+        $workTypes   = WorkType::whereIn('id', $workTypeIds)->get()->keyBy('id');
+
+        foreach ($groups as &$group) {
+            $groupTotal = $group['minutes'];
+            $group['sub_groups'] = $breakdown
+                ->where($column, $group['id'])
+                ->map(function ($row) use ($workTypes, $groupTotal) {
+                    $wt = $row->work_type_id !== null ? $workTypes->get($row->work_type_id) : null;
+                    return [
+                        'id'      => $row->work_type_id !== null ? (int) $row->work_type_id : null,
+                        'label'   => $wt?->name ?? 'No work type',
+                        'minutes' => (int) $row->minutes,
+                        'color'   => $wt?->color,
+                        'percent' => $groupTotal > 0
+                            ? round($row->minutes / $groupTotal * 100, 2)
+                            : 0.0,
+                    ];
+                })
+                ->sortBy([['minutes', 'desc'], ['label', 'asc']])
+                ->values()
+                ->all();
+        }
+        unset($group);
     }
 
     public function destroy(Project $project, TimeEntry $timeEntry)
