@@ -13,7 +13,7 @@ class ProjectInvitationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public ProjectInvitation $invitation) {}
+    public function __construct(public ProjectInvitation $invitation, public bool $hasAccount = false) {}
 
     public function envelope(): Envelope
     {

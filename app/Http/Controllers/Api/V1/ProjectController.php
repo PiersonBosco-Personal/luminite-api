@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\InvitationCreated;
 use App\Events\ProjectUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddProjectMemberRequest;
@@ -17,7 +18,6 @@ use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 
 class ProjectController extends Controller
 {
@@ -137,49 +137,37 @@ class ProjectController extends Controller
     {
         $this->authorize('manageMember', $project);
 
-        $user = User::where('email', $request->email)->first();
+        $email        = $request->email;
+        $existingUser = User::where('email', $email)->first();
 
-        if ($user) {
-            if ($project->members()->where('user_id', $user->id)->exists()) {
-                return response()->json(['message' => 'User is already a member.'], 409);
-            }
-
-            $project->members()->attach($user->id, ['role' => $request->role ?? 'member']);
-
-            $this->activity->log(
-                projectId: $project->id,
-                userId: $request->user()->id,
-                eventType: 'project.member_added',
-                subjectType: 'user',
-                subjectLabel: $user->name,
-                subjectId: $user->id,
-                description: $request->user()->name . " added {$user->name} to the project",
-            );
-
-            return new UserResource($user);
+        if ($existingUser && $project->members()->where('user_id', $existingUser->id)->exists()) {
+            return response()->json(['message' => 'User is already a member.'], 409);
         }
 
-        // User doesn't exist — send an invite
+        if (strcasecmp($email, $request->user()->email) === 0) {
+            return response()->json(['message' => 'You are already a member.'], 409);
+        }
+
+        // Idempotent: an outstanding pending invite means we don't create a duplicate.
         $alreadyInvited = ProjectInvitation::pending()
             ->where('project_id', $project->id)
-            ->where('email', $request->email)
+            ->where('email', $email)
             ->exists();
 
         if ($alreadyInvited) {
-            return response()->json(['message' => 'An invitation has already been sent to this email.'], 409);
+            return response()->json(['message' => 'Invitation already sent.'], 202);
         }
 
         $invitation = ProjectInvitation::create([
             'project_id' => $project->id,
             'invited_by' => $request->user()->id,
-            'email'      => $request->email,
-            'token'      => Str::random(64),
+            'email'      => $email,
             'expires_at' => now()->addDays(7),
         ]);
 
         $invitation->load('project', 'inviter');
 
-        Mail::to($request->email)->send(new ProjectInvitationMail($invitation));
+        Mail::to($email)->send(new ProjectInvitationMail($invitation, (bool) $existingUser));
 
         $this->activity->log(
             projectId: $project->id,
@@ -190,6 +178,10 @@ class ProjectController extends Controller
             subjectId: $invitation->id,
             description: $request->user()->name . " invited {$invitation->email} to the project",
         );
+
+        if ($existingUser) {
+            broadcast(new InvitationCreated($invitation, $existingUser->id));
+        }
 
         return response()->json(['message' => 'Invitation sent.'], 202);
     }

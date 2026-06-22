@@ -15,7 +15,6 @@ class AddProjectMemberRequest extends FormRequest
     {
         return [
             'email' => 'required|email',
-            'role'  => 'sometimes|in:owner,member',
         ];
     }
 }
