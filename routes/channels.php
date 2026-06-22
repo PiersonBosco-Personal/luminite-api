@@ -66,3 +66,14 @@ Broadcast::channel('presence-note.{noteId}', function ($user, int $noteId) {
         'name' => $user->name,
     ];
 });
+
+/*
+|--------------------------------------------------------------------------
+| Private user channel
+|--------------------------------------------------------------------------
+| A user's own channel — used for personal notifications such as project
+| invitations. Only the user themselves may subscribe.
+*/
+Broadcast::channel('user.{userId}', function ($user, int $userId) {
+    return (int) $user->id === (int) $userId;
+});
