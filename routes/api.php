@@ -6,6 +6,7 @@ use App\Http\Controllers\McpController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AttachmentFolderController;
 use App\Http\Controllers\Api\V1\InvitationController;
+use App\Http\Controllers\Api\V1\ProjectInvitationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\LabelController;
@@ -80,6 +81,11 @@ Route::prefix('v1')->group(function () {
             Route::get('/projects/{project}/members',              [ProjectController::class, 'members']);
             Route::post('/projects/{project}/members',             [ProjectController::class, 'addMember']);
             Route::delete('/projects/{project}/members/{user}',    [ProjectController::class, 'removeMember']);
+
+            // Project invitations (owner-managed)
+            Route::get('/projects/{project}/invitations',                       [ProjectInvitationController::class, 'index']);
+            Route::post('/projects/{project}/invitations/{invitation}/resend',   [ProjectInvitationController::class, 'resend']);
+            Route::delete('/projects/{project}/invitations/{invitation}',        [ProjectInvitationController::class, 'destroy']);
 
             // Tech Stack
             Route::get('/projects/{project}/tech-stack',                   [TechStackController::class, 'index']);
