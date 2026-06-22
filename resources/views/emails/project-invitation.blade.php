@@ -3,11 +3,21 @@
 
 **{{ $inviterName }}** has invited you to collaborate on **{{ $projectName }}** on Luminite.
 
-@component('mail::button', ['url' => $inviteLink])
-Accept Invitation
-@endcomponent
+@if ($hasAccount)
+Sign in to Luminite and you'll find this invitation waiting in your notifications, ready to accept or decline.
 
-This invite link expires in 7 days. If you did not expect this invitation, you can ignore this email.
+@component('mail::button', ['url' => $actionUrl])
+Sign in to respond
+@endcomponent
+@else
+Sign up for Luminite using **this email address** and the invitation will be waiting in your notifications, ready to accept.
+
+@component('mail::button', ['url' => $actionUrl])
+Sign up to get started
+@endcomponent
+@endif
+
+This invitation expires in 7 days. If you did not expect it, you can safely ignore this email.
 
 Thanks,
 The Luminite Team

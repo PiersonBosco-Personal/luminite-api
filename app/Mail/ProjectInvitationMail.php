@@ -24,14 +24,15 @@ class ProjectInvitationMail extends Mailable
 
     public function content(): Content
     {
-        $link = rtrim(env('FRONTEND_URL', 'http://localhost:5173'), '/') . '/invite/' . $this->invitation->token;
+        $base = rtrim(config('app.frontend_url', 'http://localhost:5173'), '/');
 
         return new Content(
             markdown: 'emails.project-invitation',
             with: [
                 'projectName' => $this->invitation->project->name,
                 'inviterName' => $this->invitation->inviter->name,
-                'inviteLink'  => $link,
+                'hasAccount'  => $this->hasAccount,
+                'actionUrl'   => $this->hasAccount ? "{$base}/" : "{$base}/signup",
             ],
         );
     }
