@@ -12,15 +12,19 @@ class ProjectInvitation extends Model
         'project_id',
         'invited_by',
         'email',
-        'token',
         'expires_at',
         'accepted_at',
+        'declined_at',
     ];
 
-    protected $casts = [
-        'expires_at'  => 'datetime',
-        'accepted_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'expires_at'  => 'datetime',
+            'accepted_at' => 'datetime',
+            'declined_at' => 'datetime',
+        ];
+    }
 
     public function project()
     {
@@ -36,6 +40,21 @@ class ProjectInvitation extends Model
     {
         return $query
             ->whereNull('accepted_at')
+            ->whereNull('declined_at')
             ->where('expires_at', '>', Carbon::now());
+    }
+
+    public function getStatusAttribute(): string
+    {
+        if ($this->accepted_at) {
+            return 'accepted';
+        }
+        if ($this->declined_at) {
+            return 'declined';
+        }
+        if ($this->expires_at && $this->expires_at->isPast()) {
+            return 'expired';
+        }
+        return 'pending';
     }
 }

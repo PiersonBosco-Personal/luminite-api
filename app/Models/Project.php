@@ -30,6 +30,11 @@ class Project extends Model
             ->withTimestamps();
     }
 
+    public function invitations()
+    {
+        return $this->hasMany(ProjectInvitation::class);
+    }
+
     public function taskSections()
     {
         return $this->hasMany(TaskSection::class);
