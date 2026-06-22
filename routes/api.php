@@ -37,13 +37,16 @@ Route::prefix('v1')->group(function () {
         ->middleware('throttle:5,1');
     Route::post('/auth/reset-password',  [AuthController::class, 'resetPassword'])
         ->middleware('throttle:10,1');
-    Route::get('/invitations/{token}',         [InvitationController::class, 'show']);
-    Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept']);
 
     // Protected
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/user',    [AuthController::class, 'user']);
+
+        // Invitations addressed to the authenticated user (by email)
+        Route::get('/invitations',                       [InvitationController::class, 'index']);
+        Route::post('/invitations/{invitation}/accept',  [InvitationController::class, 'accept']);
+        Route::post('/invitations/{invitation}/decline', [InvitationController::class, 'decline']);
 
         // User-scoped active timer (intentionally not project-scoped — see spec section 4)
         Route::get('/user/active-timer', [TimeEntryController::class, 'activeTimer']);

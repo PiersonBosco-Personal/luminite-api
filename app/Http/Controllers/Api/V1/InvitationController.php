@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\InvitationStatusChanged;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RespondToInvitationRequest;
+use App\Http\Resources\ProjectInvitationResource;
 use App\Models\ProjectInvitation;
-use App\Models\User;
 use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 
@@ -12,74 +14,70 @@ class InvitationController extends Controller
 {
     public function __construct(private ActivityLogService $activity) {}
 
-    public function show(string $token)
+    public function index(Request $request)
     {
-        $invitation = ProjectInvitation::pending()
-            ->where('token', $token)
+        $invitations = ProjectInvitation::pending()
+            ->where('email', $request->user()->email)
             ->with('project', 'inviter')
-            ->first();
+            ->latest()
+            ->get();
 
-        if (!$invitation) {
-            return response()->json(['message' => 'This invite link is invalid or has expired.'], 404);
-        }
-
-        return response()->json([
-            'data' => [
-                'email'        => $invitation->email,
-                'project_id'   => $invitation->project->id,
-                'project_name' => $invitation->project->name,
-                'inviter_name' => $invitation->inviter->name,
-            ],
-        ]);
+        return ProjectInvitationResource::collection($invitations);
     }
 
-    public function accept(string $token, Request $request)
+    public function accept(RespondToInvitationRequest $request, ProjectInvitation $invitation)
     {
-        $request->validate([
-            'name'                  => 'required|string|max:255',
-            'password'              => 'required|string|min:8|confirmed',
-            'password_confirmation' => 'required',
-        ]);
-
-        $invitation = ProjectInvitation::pending()
-            ->where('token', $token)
-            ->with('project')
-            ->first();
-
-        if (!$invitation) {
-            return response()->json(['message' => 'This invite link is invalid or has expired.'], 404);
+        if ($invitation->status !== 'pending') {
+            return response()->json(['message' => 'This invitation is no longer valid.'], 410);
         }
 
-        if (User::where('email', $invitation->email)->exists()) {
-            return response()->json(['message' => 'An account with this email already exists. Please log in.'], 409);
+        $user    = $request->user();
+        $project = $invitation->project;
+
+        if (! $project->members()->where('user_id', $user->id)->exists()) {
+            $project->members()->attach($user->id, ['role' => 'member']);
         }
-
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => $invitation->email,
-            'password' => $request->password,
-        ]);
-
-        $invitation->project->members()->attach($user->id, ['role' => 'member']);
 
         $invitation->update(['accepted_at' => now()]);
 
         $this->activity->log(
-            projectId:    $invitation->project->id,
-            userId:       $user->id,
-            eventType:    'project.member_joined',
-            subjectType:  'user',
+            projectId: $project->id,
+            userId: $user->id,
+            eventType: 'project.member_joined',
+            subjectType: 'user',
             subjectLabel: $user->name,
-            subjectId:    $user->id,
-            description:  "{$user->name} accepted an invitation and joined the project",
+            subjectId: $user->id,
+            description: "{$user->name} accepted an invitation and joined the project",
         );
 
-        $authToken = $user->createToken('luminite-app')->plainTextToken;
+        broadcast(new InvitationStatusChanged($invitation, $project->id));
 
         return response()->json([
-            'token'      => $authToken,
-            'user'       => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email],
-            'project_id' => $invitation->project->id,
+            'message'    => 'Invitation accepted.',
+            'project_id' => $project->id,
         ]);
+    }
+
+    public function decline(RespondToInvitationRequest $request, ProjectInvitation $invitation)
+    {
+        if ($invitation->status !== 'pending') {
+            return response()->json(['message' => 'This invitation is no longer valid.'], 410);
+        }
+
+        $invitation->update(['declined_at' => now()]);
+
+        $this->activity->log(
+            projectId: $invitation->project_id,
+            userId: $request->user()->id,
+            eventType: 'project.invite_declined',
+            subjectType: 'invitation',
+            subjectLabel: $invitation->email,
+            subjectId: $invitation->id,
+            description: $request->user()->name . " declined an invitation to the project",
+        );
+
+        broadcast(new InvitationStatusChanged($invitation, $invitation->project_id));
+
+        return response()->json(['message' => 'Invitation declined.']);
     }
 }
