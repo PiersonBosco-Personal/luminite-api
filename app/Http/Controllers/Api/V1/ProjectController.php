@@ -137,6 +137,49 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Project deleted.']);
     }
 
+    public function trashed(Request $request)
+    {
+        $projects = Project::onlyTrashed()
+            ->where('owner_id', $request->user()->id)
+            ->with('owner')
+            ->withCount('members')
+            ->get();
+
+        return ProjectResource::collection($projects);
+    }
+
+    public function restore(Request $request, Project $project)
+    {
+        $this->authorize('restore', $project);
+
+        $memberIds = $project->members()->pluck('users.id')->all();
+
+        $project->restore();
+
+        $this->activity->log(
+            projectId: $project->id,
+            userId: $request->user()->id,
+            eventType: 'project.restored',
+            subjectType: 'project',
+            subjectLabel: $project->name,
+            subjectId: $project->id,
+            description: $request->user()->name . " restored project {$project->name}",
+        );
+
+        broadcast(new ProjectRestored($project->id, $memberIds))->toOthers();
+
+        return new ProjectResource($project->load('owner'));
+    }
+
+    public function forceDelete(Request $request, Project $project)
+    {
+        $this->authorize('forceDelete', $project);
+
+        $project->forceDelete();
+
+        return response()->json(['message' => 'Project permanently deleted.']);
+    }
+
     public function members(Project $project)
     {
         $members = $project->members()->get();

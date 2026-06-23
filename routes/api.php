@@ -70,6 +70,7 @@ Route::prefix('v1')->group(function () {
         // Projects
         Route::get('/projects',       [ProjectController::class, 'index']);
         Route::post('/projects',      [ProjectController::class, 'store']);
+        Route::get('/projects/trashed', [ProjectController::class, 'trashed']);
 
         // Project-scoped routes (must be a member)
         Route::middleware('project.member')->group(function () {
@@ -175,5 +176,10 @@ Route::prefix('v1')->group(function () {
             Route::put('/projects/{project}/time-entries/{timeEntry}',                [TimeEntryController::class, 'update']);
             Route::delete('/projects/{project}/time-entries/{timeEntry}',             [TimeEntryController::class, 'destroy']);
         });
+
+        Route::post('/projects/{project}/restore', [ProjectController::class, 'restore'])
+            ->withTrashed();
+        Route::delete('/projects/{project}/force', [ProjectController::class, 'forceDelete'])
+            ->withTrashed();
     });
 });
