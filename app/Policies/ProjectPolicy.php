@@ -21,4 +21,14 @@ class ProjectPolicy
     {
         return $project->owner_id === $user->id;
     }
+
+    public function restore(User $user, Project $project): bool
+    {
+        return $project->owner_id === $user->id;
+    }
+
+    public function forceDelete(User $user, Project $project): bool
+    {
+        return $project->owner_id === $user->id;
+    }
 }
