@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\McpToken;
+use App\Models\Project;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,10 @@ class ValidateMcpToken
         $token = McpToken::where('token', hash('sha256', $bearer))->first();
 
         if (! $token || $token->isExpired()) {
+            return $this->error($request, self::AUTH_ERROR_MESSAGE);
+        }
+
+        if (Project::onlyTrashed()->whereKey($token->project_id)->exists()) {
             return $this->error($request, self::AUTH_ERROR_MESSAGE);
         }
 
