@@ -117,13 +117,14 @@ it('returns 422 when status is invalid on update', function () {
 
 // --- Destroy ---
 
-it('owner can delete a project', function () {
+it('owner can soft-delete a project', function () {
     $user    = actingAsUser();
     $project = createProject($user);
 
     $this->deleteJson("/api/v1/projects/{$project->id}")->assertStatus(200);
 
     expect(Project::find($project->id))->toBeNull();
+    expect(\App\Models\Project::withTrashed()->find($project->id))->not->toBeNull();
 });
 
 it('returns 403 when member tries to delete a project', function () {

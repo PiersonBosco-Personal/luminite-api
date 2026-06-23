@@ -9,12 +9,12 @@ it('creates work_types table with expected columns', function () {
     ]))->toBeTrue();
 });
 
-it('cascades work_type delete when project is deleted', function () {
+it('cascades work_type delete when project is force-deleted', function () {
     $owner   = \App\Models\User::factory()->create();
     $project = createProject($owner);
     \App\Models\WorkType::factory()->create(['project_id' => $project->id]);
 
-    $project->delete();
+    $project->forceDelete();
 
     expect(\App\Models\WorkType::count())->toBe(0);
 });
