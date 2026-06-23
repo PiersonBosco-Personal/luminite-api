@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Events\InvitationCreated;
 use App\Events\RemovedFromProject;
+use App\Events\ProjectDeleted;
+use App\Events\ProjectRestored;
 use App\Events\ProjectUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddProjectMemberRequest;
@@ -116,7 +118,21 @@ class ProjectController extends Controller
     {
         $this->authorize('delete', $project);
 
+        $memberIds = $project->members()->pluck('users.id')->all();
+
+        $this->activity->log(
+            projectId: $project->id,
+            userId: $request->user()->id,
+            eventType: 'project.deleted',
+            subjectType: 'project',
+            subjectLabel: $project->name,
+            subjectId: $project->id,
+            description: $request->user()->name . " deleted project {$project->name}",
+        );
+
         $project->delete();
+
+        broadcast(new ProjectDeleted($project->id, $memberIds))->toOthers();
 
         return response()->json(['message' => 'Project deleted.']);
     }
