@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Events\InvitationCreated;
+use App\Events\RemovedFromProject;
 use App\Events\ProjectUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddProjectMemberRequest;
@@ -205,6 +206,8 @@ class ProjectController extends Controller
             subjectId: $user->id,
             description: $request->user()->name . " removed {$user->name} from the project",
         );
+
+        broadcast(new RemovedFromProject($user->id, $project));
 
         return response()->json(['message' => 'Member removed.']);
     }

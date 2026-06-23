@@ -124,6 +124,18 @@ it('owner can remove a member', function () {
     expect($project->members()->where('user_id', $member->id)->exists())->toBeFalse();
 });
 
+it('broadcasts RemovedFromProject to the removed user', function () {
+    Event::fake([\App\Events\RemovedFromProject::class]);
+    ['project' => $project, 'owner' => $owner, 'member' => $member] = createProjectWithMember();
+    Sanctum::actingAs($owner);
+
+    $this->deleteJson("/api/v1/projects/{$project->id}/members/{$member->id}")
+         ->assertStatus(200);
+
+    Event::assertDispatched(\App\Events\RemovedFromProject::class,
+        fn ($e) => $e->userId === $member->id && $e->project->id === $project->id);
+});
+
 it('returns 422 when owner tries to remove themselves', function () {
     ['project' => $project, 'owner' => $owner] = createProjectWithMember();
     Sanctum::actingAs($owner);
