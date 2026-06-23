@@ -128,3 +128,14 @@ it('forbids a non-owner from force-deleting', function () {
 
     $this->deleteJson("/api/v1/projects/{$project->id}/force")->assertStatus(403);
 });
+
+it('includes deleted_at in the trashed listing payload', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $project->delete();
+
+    $this->getJson('/api/v1/projects/trashed')
+        ->assertStatus(200)
+        ->assertJsonPath('data.0.id', $project->id)
+        ->assertJsonStructure(['data' => [['id', 'name', 'deleted_at']]]);
+});
