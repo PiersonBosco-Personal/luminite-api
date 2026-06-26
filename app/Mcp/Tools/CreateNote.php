@@ -3,7 +3,9 @@
 namespace App\Mcp\Tools;
 
 use App\Events\NoteCreated;
+use App\Events\NoteFolderCreated;
 use App\Mcp\Tools\Concerns\BuildsNoteContent;
+use App\Mcp\Tools\Concerns\ResolvesClaudeFolder;
 use App\Mcp\Tools\Concerns\ResolvesTaskInput;
 use App\Models\Note;
 use App\Models\Task;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 class CreateNote extends Tool
 {
     use BuildsNoteContent;
+    use ResolvesClaudeFolder;
     use ResolvesTaskInput;
 
     public function requiredScope(): string
@@ -65,11 +68,17 @@ class CreateNote extends Tool
 
         $content = $this->textToTiptap((string) ($args['content'] ?? ''));
 
-        $note = DB::transaction(function () use ($projectId, $userId, $taskId, $title, $content, $labelIds) {
-            $position = (int) Note::where('project_id', $projectId)->max('position') + 1;
+        [$note, $folderCreated, $folder] = DB::transaction(function () use ($projectId, $userId, $taskId, $title, $content, $labelIds) {
+            [$folderId, $folderCreated] = $this->resolveClaudeFolder($projectId, $userId);
+
+            // Position is scoped to the Claude folder so the notes tree orders correctly.
+            $position = (int) Note::where('project_id', $projectId)
+                ->where('folder_id', $folderId)
+                ->max('position') + 1;
 
             $note = Note::create([
                 'project_id' => $projectId,
+                'folder_id'  => $folderId,
                 'task_id'    => $taskId,
                 'created_by' => $userId,
                 'title'      => $title,
@@ -82,8 +91,12 @@ class CreateNote extends Tool
                 $note->labels()->sync($labelIds);
             }
 
-            return $note;
+            return [$note, $folderCreated, $note->folder];
         });
+
+        if ($folderCreated && $folder) {
+            broadcast(new NoteFolderCreated($folder, $projectId));
+        }
 
         broadcast(new NoteCreated($note, $projectId));
 
