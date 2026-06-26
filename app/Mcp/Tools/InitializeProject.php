@@ -12,6 +12,8 @@ use App\Models\TaskSection;
 use App\Models\TechStack;
 use App\Models\Widget;
 use App\Services\ActivityLogService;
+use App\Services\GridRect;
+use App\Services\WidgetPlacementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -250,8 +252,8 @@ class InitializeProject extends Tool
                 $taskCount++;
             }
 
-            // 3f. Widgets — token user's dashboard, default grid sizes,
-            //     stacked below existing widgets; already-placed slugs skipped.
+            // 3f. Widgets — token user's dashboard, packed via first-fit
+            //     (AI order preserved); already-placed slugs skipped.
             $placed = 0;
             if ($payload['widgets']) {
                 $catalog = Widget::whereIn('slug', $payload['widgets'])->get()->keyBy('slug');
@@ -263,29 +265,40 @@ class InitializeProject extends Tool
                     ->pluck('widget.slug')
                     ->all();
 
-                $maxY = DashboardWidget::where('project_id', $projectId)
+                // Pack new widgets around any already-placed ones without moving them.
+                $protect = DashboardWidget::where('project_id', $projectId)
                     ->where('user_id', $userId)
-                    ->selectRaw('MAX(grid_y + grid_h) as max_y')
-                    ->value('max_y') ?? 0;
+                    ->get(['grid_x', 'grid_y', 'grid_w', 'grid_h'])
+                    ->map(fn ($w) => new GridRect($w->grid_x, $w->grid_y, $w->grid_w, $w->grid_h))
+                    ->all();
 
-                foreach ($payload['widgets'] as $slug) {
-                    if (in_array($slug, $existingSlugs, true)) {
-                        continue;
-                    }
+                $toPlace = array_values(array_filter(
+                    $payload['widgets'],
+                    fn (string $slug) => ! in_array($slug, $existingSlugs, true),
+                ));
 
-                    $widget = $catalog[$slug];
+                $metas = array_map(fn (string $slug) => [
+                    'default_w' => $catalog[$slug]->default_w,
+                    'default_h' => $catalog[$slug]->default_h,
+                    'min_w' => $catalog[$slug]->min_w,
+                    'min_h' => $catalog[$slug]->min_h,
+                ], $toPlace);
+
+                $rects = app(WidgetPlacementService::class)->packSequence($metas, $protect);
+
+                foreach ($toPlace as $i => $slug) {
+                    $rect = $rects[$i];
 
                     DashboardWidget::create([
                         'project_id' => $projectId,
                         'user_id' => $userId,
-                        'widget_id' => $widget->id,
-                        'grid_x' => 0,
-                        'grid_y' => $maxY,
-                        'grid_w' => $widget->default_w,
-                        'grid_h' => $widget->default_h,
+                        'widget_id' => $catalog[$slug]->id,
+                        'grid_x' => $rect->x,
+                        'grid_y' => $rect->y,
+                        'grid_w' => $rect->w,
+                        'grid_h' => $rect->h,
                     ]);
 
-                    $maxY += $widget->default_h;
                     $placed++;
                 }
             }

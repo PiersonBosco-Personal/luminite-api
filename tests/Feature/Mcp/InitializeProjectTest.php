@@ -191,13 +191,14 @@ it('does not treat existing widgets as non-blank, and skips already-placed slugs
         ->where('widget_id', $board->id)
         ->count())->toBe(1); // not duplicated
 
-    // the new widget stacks below the pre-existing one
+    // The new widget slots into the gap beside the pre-existing board, not below it.
     $feed = Widget::where('slug', 'activity_feed')->first();
     $placed = DashboardWidget::where('project_id', $project->id)
         ->where('user_id', $user->id)
         ->where('widget_id', $feed->id)
         ->first();
-    expect((int) $placed->grid_y)->toBe((int) $board->default_h);
+    expect((int) $placed->grid_x)->toBe(8)
+        ->and((int) $placed->grid_y)->toBe(0);
 });
 
 it('stores omitted goals and architecture notes as null', function () {
