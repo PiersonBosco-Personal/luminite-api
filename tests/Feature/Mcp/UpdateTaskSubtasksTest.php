@@ -49,6 +49,25 @@ it('update_task treats subtasks-only as a real change (not "No changes")', funct
     expect(Task::where('parent_task_id', $task->id)->count())->toBe(1);
 });
 
+it('update_task places subtasks in the destination section when also moving the task', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+    $backlog = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
+    $done = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Done', 'position' => 1]);
+    $task = Task::create([
+        'project_id' => $project->id, 'section_id' => $backlog->id,
+        'title' => 'Mover', 'status' => 'todo', 'priority' => 'medium', 'position' => 0,
+    ]);
+
+    updateTaskViaMcp($this, $raw, [
+        'task_id' => $task->id,
+        'section' => 'Done',
+        'subtasks' => ['Child A'],
+    ]);
+
+    $child = Task::where('parent_task_id', $task->id)->first();
+    expect($child->section_id)->toBe($done->id);
+});
+
 it('update_task with no fields still reports no changes', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
     $section = TaskSection::factory()->create(['project_id' => $project->id, 'position' => 0]);
