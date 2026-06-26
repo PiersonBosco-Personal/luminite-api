@@ -129,7 +129,10 @@ class InitializeProject extends Tool
             return 'Error: the project associated with this token no longer exists.';
         }
 
-        $validSlugs = Widget::where('is_active', true)->pluck('slug')->all();
+        $validSlugs = Widget::where('is_active', true)
+            ->where('is_available', true)
+            ->pluck('slug')
+            ->all();
 
         $result = DB::transaction(function () use ($args, $project, $projectId, $userId, $validSlugs) {
             // 1. Blank-project guard — first, inside the transaction.
