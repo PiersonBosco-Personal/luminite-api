@@ -18,7 +18,7 @@ class GetSessionContext extends Tool
     {
         return [
             'name'        => 'get_session_context',
-            'description' => 'Call this at the start of every session before responding to the user. Returns a complete project snapshot: goals, tech stack, open and in-progress tasks, and activity from the last 48 hours. Do not call the granular tools at session start — this covers everything.',
+            'description' => 'Call this at the start of every session before responding to the user. Returns a complete project snapshot: goals, tech stack, open and in-progress tasks, and activity from the last 48 hours. Do not call the granular tools at session start — this covers everything. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => new \stdClass(),

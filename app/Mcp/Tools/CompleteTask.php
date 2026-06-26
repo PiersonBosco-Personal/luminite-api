@@ -23,7 +23,7 @@ class CompleteTask extends Tool
     {
         return [
             'name' => 'complete_task',
-            'description' => 'Mark a task done by id, with optional completion notes. Notes are recorded in the activity feed, not on the task body. The task is moved to the project\'s "Done" section by default; pass section (id or name) to move it elsewhere. If no "Done" section exists the task is still completed and the response asks you to pick a section with the user — then call complete_task again with the section argument. Requires a token with the write scope.',
+            'description' => 'Mark a task done by id, with optional completion notes. Notes are recorded in the activity feed, not on the task body. The task is moved to the project\'s "Done" section by default; pass section (id or name) to move it elsewhere. If no "Done" section exists the task is still completed and the response asks you to pick a section with the user — then call complete_task again with the section argument. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title. Requires a token with the write scope.',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [

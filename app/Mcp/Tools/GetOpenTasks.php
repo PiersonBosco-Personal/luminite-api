@@ -12,7 +12,7 @@ class GetOpenTasks extends Tool
     {
         return [
             'name' => 'get_open_tasks',
-            'description' => 'List open (non-done) tasks. Call this when you need to know what to work on, or to find a task id before updating/completing it. Each task is listed as "#id [priority] title — status"; pass that #id (the number) as task_id to update_task or complete_task. Filter by status, priority, section_id, or label_id. When you mention a task to the user, refer to it by name — use the #id only as the task_id argument.',
+            'description' => 'List open (non-done) tasks. Call this when you need to know what to work on, or to find a task id before updating/completing it. Each task is listed as "#id [priority] title — status"; pass that #id (the number) as task_id to update_task or complete_task. Filter by status, priority, section_id, or label_id. When you mention a task to the user, refer to it by name — use the #id only as the task_id argument. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title.',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [

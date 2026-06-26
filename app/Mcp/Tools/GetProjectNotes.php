@@ -11,7 +11,7 @@ class GetProjectNotes extends Tool
     {
         return [
             'name'        => 'get_project_notes',
-            'description' => 'Search project notes. Call this before writing a new note to avoid duplicating an existing decision, or to pull prior context on a feature. Filter by keyword or tag.',
+            'description' => 'Search project notes. Call this before writing a new note to avoid duplicating an existing decision, or to pull prior context on a feature. Filter by keyword or tag. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [

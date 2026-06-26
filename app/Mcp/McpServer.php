@@ -71,6 +71,8 @@ class McpServer
             '- Finishing a task → complete_task.',
             '- Notable decision (architecture, tradeoff, scope change) → create_note linked with task_id.',
             'If you are missing project state, call get_session_context first.',
+            '',
+            'When you mention any Luminite item (task, note, section, label, project) to the user, refer to it by its name or title — never by its numeric id. IDs are internal handles for your tool calls only and are meaningless to the user. If two items share a name, distinguish them with a human detail (priority, label, assignee, or which section they are in); if still ambiguous, ask. Never show or read out an id.',
         ]);
     }
 

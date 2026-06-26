@@ -25,7 +25,7 @@ class ManageLabel extends Tool
     {
         return [
             'name'        => 'manage_label',
-            'description' => 'Create a label, or attach/detach a label to a task or note. action="create" needs name (and optional color hex); action="attach"/"detach" need label (id or name) and exactly one of task_id or note_id. Requires a token with the write scope.',
+            'description' => 'Create a label, or attach/detach a label to a task or note. action="create" needs name (and optional color hex); action="attach"/"detach" need label (id or name) and exactly one of task_id or note_id. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title. Requires a token with the write scope.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [

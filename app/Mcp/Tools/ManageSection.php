@@ -21,7 +21,7 @@ class ManageSection extends Tool
     {
         return [
             'name'        => 'manage_section',
-            'description' => 'Create, rename, or reorder task sections (board columns). action="create" needs name; action="rename" needs section_id + name; action="reorder" needs order (an array of section ids in the desired left-to-right order). Requires a token with the write scope.',
+            'description' => 'Create, rename, or reorder task sections (board columns). action="create" needs name; action="rename" needs section_id + name; action="reorder" needs order (an array of section ids in the desired left-to-right order). The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title. Requires a token with the write scope.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [
