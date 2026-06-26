@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct(private WidgetPlacementService $placement) {}
+
     /**
      * GET /v1/projects/{project}/dashboard-widgets
      * Returns the authenticated user's placed widgets for this project.
@@ -43,7 +45,7 @@ class DashboardController extends Controller
             ->map(fn ($w) => new GridRect($w->grid_x, $w->grid_y, $w->grid_w, $w->grid_h))
             ->all();
 
-        $rect = app(WidgetPlacementService::class)->placeOne($existing, [
+        $rect = $this->placement->placeOne($existing, [
             'default_w' => $catalogWidget->default_w,
             'default_h' => $catalogWidget->default_h,
             'min_w' => $catalogWidget->min_w,
