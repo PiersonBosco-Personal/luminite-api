@@ -29,18 +29,18 @@ final class WidgetPlacementService
         $maxStretchH = (int) round(self::HEIGHT_STRETCH_FACTOR * $widget['default_h']);
 
         foreach ($this->candidateYs($existing) as $y) {
-            $band = array_filter($existing, fn (GridRect $e) => $e->y <= $y && $y < $e->y + $e->h);
+            $band = array_filter($existing, fn(GridRect $e) => $e->y <= $y && $y < $e->y + $e->h);
             if ($band === []) {
                 continue;
             }
 
-            $usedRight = max(array_map(fn (GridRect $e) => $e->x + $e->w, $band));
+            $usedRight = max(array_map(fn(GridRect $e) => $e->x + $e->w, $band));
             $leftover = self::COLS - $usedRight;
             if ($leftover < $widget['min_w']) {
                 continue;
             }
 
-            $bandHeight = max(array_map(fn (GridRect $e) => $e->y + $e->h, $band)) - $y;
+            $bandHeight = max(array_map(fn(GridRect $e) => $e->y + $e->h, $band)) - $y;
             if ($widget['min_h'] > $bandHeight) {
                 continue;
             }
@@ -53,7 +53,7 @@ final class WidgetPlacementService
             }
         }
 
-        $newY = max(array_map(fn (GridRect $e) => $e->y + $e->h, $existing));
+        $newY = max(array_map(fn(GridRect $e) => $e->y + $e->h, $existing));
 
         return new GridRect(0, $newY, $widget['default_w'], $widget['default_h']);
     }
@@ -141,7 +141,7 @@ final class WidgetPlacementService
                 continue;
             }
 
-            $others = array_filter($all, fn (GridRect $r) => $r !== $last);
+            $others = array_filter($all, fn(GridRect $r) => $r !== $last);
             if ($this->rectIsFree($others, $last->x, $last->y, $last->w + $trailing, $last->h)) {
                 $last->w += $trailing;
             }
