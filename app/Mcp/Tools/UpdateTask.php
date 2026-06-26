@@ -37,6 +37,7 @@ class UpdateTask extends Tool
                     'assignee_id' => ['type' => 'integer', 'description' => 'User id; must be a member of this project.'],
                     'parent' => ['type' => ['integer', 'null'], 'description' => 'Parent task id, or null to detach.'],
                     'labels' => ['type' => 'array', 'items' => ['type' => ['string', 'integer']], 'description' => 'Replace the task\'s labels with these (ids or names).'],
+                    'subtasks' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Titles of child tasks to create under this task, in its section.'],
                 ],
                 'required' => ['task_id'],
             ],
@@ -136,11 +137,16 @@ class UpdateTask extends Tool
             $changed[] = 'labels';
         }
 
-        if (! $updates && $labelIds === null) {
+        $subtaskTitles = $this->normalizeSubtaskTitles($args['subtasks'] ?? null);
+        if ($subtaskTitles) {
+            $changed[] = 'subtasks';
+        }
+
+        if (! $updates && $labelIds === null && ! $subtaskTitles) {
             return "No changes: provide at least one field to update on task #{$task->id}.";
         }
 
-        DB::transaction(function () use ($task, $updates, $labelIds, $sectionMoved, $projectId) {
+        DB::transaction(function () use ($task, $updates, $labelIds, $sectionMoved, $projectId, $userId, $subtaskTitles) {
             if ($sectionMoved) {
                 // Top-of-section: free position 0 in the destination, place the task there.
                 $this->shiftSectionDown($projectId, $updates['section_id']);
@@ -151,6 +157,10 @@ class UpdateTask extends Tool
             }
             if ($labelIds !== null) {
                 $task->labels()->sync($labelIds);
+            }
+            if ($subtaskTitles) {
+                // Children land in the task's (possibly just-moved) section.
+                $this->createSubtasks($projectId, $task->section_id, $userId, $task->id, $subtaskTitles);
             }
         });
 

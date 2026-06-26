@@ -71,10 +71,7 @@ class CreateTask extends Tool
             }
         }
 
-        $subtaskTitles = array_values(array_filter(array_map(
-            fn ($t) => trim((string) $t),
-            (array) ($args['subtasks'] ?? [])
-        ), fn ($t) => $t !== ''));
+        $subtaskTitles = $this->normalizeSubtaskTitles($args['subtasks'] ?? null);
 
         [$task, $children] = DB::transaction(function () use ($projectId, $sectionId, $userId, $title, $args, $priority, $labelIds, $parentId, $subtaskTitles) {
             // Top-of-section insert: free position 0, then create there.
@@ -97,20 +94,7 @@ class CreateTask extends Tool
             }
 
             // Subtasks live in the same section, nested under the new task.
-            // They are filtered out of board top-level ordering, so position is not significant.
-            $children = [];
-            foreach ($subtaskTitles as $childTitle) {
-                $children[] = Task::create([
-                    'project_id' => $projectId,
-                    'section_id' => $sectionId,
-                    'parent_task_id' => $task->id,
-                    'created_by' => $userId,
-                    'title' => $childTitle,
-                    'status' => 'todo',
-                    'priority' => 'medium',
-                    'position' => 0,
-                ]);
-            }
+            $children = $this->createSubtasks($projectId, $sectionId, $userId, $task->id, $subtaskTitles);
 
             return [$task, $children];
         });

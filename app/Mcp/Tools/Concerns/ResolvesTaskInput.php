@@ -121,4 +121,40 @@ trait ResolvesTaskInput
 
         return array_values(array_unique($ids));
     }
+
+    /** Normalize a `subtasks` arg into a clean list of non-empty titles. */
+    protected function normalizeSubtaskTitles(mixed $subtasks): array
+    {
+        return array_values(array_filter(array_map(
+            fn ($t) => trim((string) $t),
+            (array) ($subtasks ?? [])
+        ), fn ($t) => $t !== ''));
+    }
+
+    /**
+     * Create child tasks (by title) under a parent, in the parent's section.
+     * Subtasks are filtered out of board top-level ordering, so position is not
+     * significant — they are created at position 0. Returns the created models.
+     *
+     * @param  string[]  $titles
+     * @return \App\Models\Task[]
+     */
+    protected function createSubtasks(int $projectId, int $sectionId, ?int $userId, int $parentId, array $titles): array
+    {
+        $children = [];
+        foreach ($titles as $title) {
+            $children[] = Task::create([
+                'project_id'     => $projectId,
+                'section_id'     => $sectionId,
+                'parent_task_id' => $parentId,
+                'created_by'     => $userId,
+                'title'          => $title,
+                'status'         => 'todo',
+                'priority'       => 'medium',
+                'position'       => 0,
+            ]);
+        }
+
+        return $children;
+    }
 }
