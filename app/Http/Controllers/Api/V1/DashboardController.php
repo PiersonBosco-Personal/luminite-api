@@ -9,6 +9,8 @@ use App\Http\Resources\DashboardWidgetResource;
 use App\Models\DashboardWidget;
 use App\Models\Project;
 use App\Models\Widget;
+use App\Services\GridRect;
+use App\Services\WidgetPlacementService;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -35,19 +37,26 @@ class DashboardController extends Controller
     {
         $catalogWidget = Widget::findOrFail($request->widget_id);
 
-        // Place below the lowest existing widget for this user/project
-        $maxY = $project->dashboardWidgets()
+        $existing = $project->dashboardWidgets()
             ->where('user_id', auth()->id())
-            ->selectRaw('MAX(grid_y + grid_h) as max_y')
-            ->value('max_y') ?? 0;
+            ->get(['grid_x', 'grid_y', 'grid_w', 'grid_h'])
+            ->map(fn ($w) => new GridRect($w->grid_x, $w->grid_y, $w->grid_w, $w->grid_h))
+            ->all();
+
+        $rect = app(WidgetPlacementService::class)->placeOne($existing, [
+            'default_w' => $catalogWidget->default_w,
+            'default_h' => $catalogWidget->default_h,
+            'min_w' => $catalogWidget->min_w,
+            'min_h' => $catalogWidget->min_h,
+        ]);
 
         $dashboardWidget = $project->dashboardWidgets()->create([
-            'user_id'   => auth()->id(),
+            'user_id' => auth()->id(),
             'widget_id' => $catalogWidget->id,
-            'grid_x'    => 0,
-            'grid_y'    => $maxY,
-            'grid_w'    => $catalogWidget->default_w,
-            'grid_h'    => $catalogWidget->default_h,
+            'grid_x' => $rect->x,
+            'grid_y' => $rect->y,
+            'grid_w' => $rect->w,
+            'grid_h' => $rect->h,
         ]);
 
         return new DashboardWidgetResource($dashboardWidget->load('widget'));

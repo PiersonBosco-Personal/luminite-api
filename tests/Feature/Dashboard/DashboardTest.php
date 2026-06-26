@@ -18,20 +18,20 @@ it('returns only the acting user\'s dashboard widgets for the project', function
     // Owner has 1 widget, member has 1 widget
     DashboardWidget::factory()->create([
         'project_id' => $project->id,
-        'user_id'    => $owner->id,
-        'widget_id'  => $widget->id,
+        'user_id' => $owner->id,
+        'widget_id' => $widget->id,
         'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 4,
     ]);
     DashboardWidget::factory()->create([
         'project_id' => $project->id,
-        'user_id'    => $member->id,
-        'widget_id'  => $widget->id,
+        'user_id' => $member->id,
+        'widget_id' => $widget->id,
         'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 4,
     ]);
 
     $data = $this->getJson("/api/v1/projects/{$project->id}/dashboard-widgets")
-                 ->assertStatus(200)
-                 ->json('data');
+        ->assertStatus(200)
+        ->json('data');
 
     expect(count($data))->toBe(1)
         ->and($data[0]['user_id'])->toBe($owner->id);
@@ -40,7 +40,7 @@ it('returns only the acting user\'s dashboard widgets for the project', function
 it('returns 403 on dashboard index when not a member', function () {
     seedWidgets();
     actingAsUser();
-    $other   = User::factory()->create();
+    $other = User::factory()->create();
     $project = createProject($other);
 
     $this->getJson("/api/v1/projects/{$project->id}/dashboard-widgets")->assertStatus(403);
@@ -50,48 +50,75 @@ it('returns 403 on dashboard index when not a member', function () {
 
 it('member can add a widget to the dashboard', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::first();
+    $widget = Widget::first();
 
     $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
         'widget_id' => $widget->id,
     ])->assertStatus(201)->assertJsonFragment(['widget_id' => $widget->id]);
 });
 
-it('places a new widget below the lowest existing widget', function () {
+it('slots a new widget into the gap beside an existing one', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::first();
 
-    // First widget at y=0, h=4 → next should be at y=4
+    // Existing activity_feed-sized widget at the top-left (4 wide, 5 tall).
+    $activity = Widget::where('slug', 'activity_feed')->first();
     DashboardWidget::factory()->create([
-        'project_id' => $project->id,
-        'user_id'    => $user->id,
-        'widget_id'  => $widget->id,
+        'project_id' => $project->id, 'user_id' => $user->id, 'widget_id' => $activity->id,
+        'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 5,
+    ]);
+
+    // Add deadline_tracker (default 4x5, min 3x3) → slots beside, fills the 8-wide gap.
+    $deadline = Widget::where('slug', 'deadline_tracker')->first();
+    $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
+        'widget_id' => $deadline->id,
+    ])->assertStatus(201);
+
+    expect($response->json('data.grid_x'))->toBe(4)
+        ->and($response->json('data.grid_y'))->toBe(0)
+        ->and($response->json('data.grid_w'))->toBe(8)   // placeOne fills the gap (12 - 4)
+        ->and($response->json('data.grid_h'))->toBe(5);  // matches the band height
+});
+
+it('drops a new widget to a new row when it cannot fit beside an existing one', function () {
+    seedWidgets();
+    $user = actingAsUser();
+    $project = createProject($user);
+
+    // Short existing widget (4 wide, 4 tall) at the top-left.
+    $label = Widget::where('slug', 'label_breakdown')->first();
+    DashboardWidget::factory()->create([
+        'project_id' => $project->id, 'user_id' => $user->id, 'widget_id' => $label->id,
         'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 4,
     ]);
 
+    // tasks_board (min 8x6) cannot fit the 8-wide x 4-tall gap (min_h 6 > 4) → new row.
+    $board = Widget::where('slug', 'tasks_board')->first();
     $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
-        'widget_id' => $widget->id,
+        'widget_id' => $board->id,
     ])->assertStatus(201);
 
-    expect($response->json('data.grid_y'))->toBe(4);
+    expect($response->json('data.grid_x'))->toBe(0)
+        ->and($response->json('data.grid_y'))->toBe(4)
+        ->and($response->json('data.grid_w'))->toBe(8)
+        ->and($response->json('data.grid_h'))->toBe(6);
 });
 
 it('returns 422 when widget_id is missing on store', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
 
     $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [])
-         ->assertStatus(422);
+        ->assertStatus(422);
 });
 
 it('returns 422 when widget_id does not exist on store', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
 
     $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
@@ -102,9 +129,9 @@ it('returns 422 when widget_id does not exist on store', function () {
 it('returns 403 on store when not a member', function () {
     seedWidgets();
     actingAsUser();
-    $other   = User::factory()->create();
+    $other = User::factory()->create();
     $project = createProject($other);
-    $widget  = Widget::first();
+    $widget = Widget::first();
 
     $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
         'widget_id' => $widget->id,
@@ -113,9 +140,9 @@ it('returns 403 on store when not a member', function () {
 
 it('uses the widget catalog default dimensions on store', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::where('slug', 'tasks_board')->first();
+    $widget = Widget::where('slug', 'tasks_board')->first();
 
     $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
         'widget_id' => $widget->id,
@@ -127,9 +154,9 @@ it('uses the widget catalog default dimensions on store', function () {
 
 it('tasks_board widget is added at grid_x=0 with its catalog dimensions', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::where('slug', 'tasks_board')->first();
+    $widget = Widget::where('slug', 'tasks_board')->first();
 
     $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
         'widget_id' => $widget->id,
@@ -142,9 +169,9 @@ it('tasks_board widget is added at grid_x=0 with its catalog dimensions', functi
 
 it('widget response includes nested widget metadata', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::where('slug', 'tasks_board')->first();
+    $widget = Widget::where('slug', 'tasks_board')->first();
 
     $response = $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets", [
         'widget_id' => $widget->id,
@@ -158,14 +185,14 @@ it('widget response includes nested widget metadata', function () {
 
 it('member can sync dashboard widget layout', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::first();
+    $widget = Widget::first();
 
     $dw = DashboardWidget::factory()->create([
         'project_id' => $project->id,
-        'user_id'    => $user->id,
-        'widget_id'  => $widget->id,
+        'user_id' => $user->id,
+        'widget_id' => $widget->id,
         'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 4,
     ]);
 
@@ -188,7 +215,7 @@ it('sync does not update another user\'s widgets', function () {
     ['project' => $project, 'owner' => $owner, 'member' => $member] = createProjectWithMember();
     $widget = Widget::first();
 
-    $ownerDw  = DashboardWidget::factory()->create([
+    $ownerDw = DashboardWidget::factory()->create([
         'project_id' => $project->id, 'user_id' => $owner->id, 'widget_id' => $widget->id,
         'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 4,
     ]);
@@ -215,25 +242,25 @@ it('sync does not update another user\'s widgets', function () {
 
 it('returns 422 when layout is missing on sync', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
 
     $this->postJson("/api/v1/projects/{$project->id}/dashboard-widgets/sync", [])
-         ->assertStatus(422);
+        ->assertStatus(422);
 });
 
 // --- Destroy ---
 
 it('user can delete their own dashboard widget', function () {
     seedWidgets();
-    $user    = actingAsUser();
+    $user = actingAsUser();
     $project = createProject($user);
-    $widget  = Widget::first();
+    $widget = Widget::first();
 
     $dw = DashboardWidget::factory()->create([
         'project_id' => $project->id,
-        'user_id'    => $user->id,
-        'widget_id'  => $widget->id,
+        'user_id' => $user->id,
+        'widget_id' => $widget->id,
         'grid_x' => 0, 'grid_y' => 0, 'grid_w' => 4, 'grid_h' => 4,
     ]);
 
