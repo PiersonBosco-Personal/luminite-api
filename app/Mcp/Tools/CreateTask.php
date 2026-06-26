@@ -22,7 +22,7 @@ class CreateTask extends Tool
     {
         return [
             'name' => 'create_task',
-            'description' => 'Create a task. Section and labels accept either ids or names; an omitted section defaults to the Triage inbox (or the first section if there is none). Unknown label names are created automatically. Pass parent (a task id) to create this as a subtask, or subtasks (an array of titles) to create child tasks alongside it. New tasks are placed at the top of their section. Requires a token with the write scope.',
+            'description' => 'Create a task. Section and labels accept either ids or names; an omitted section defaults to the Triage inbox (or the first section if there is none). Unknown label names are created automatically. Break work down with the subtasks array (an array of titles) — do NOT enumerate steps in the description field; description is for context and acceptance criteria only. Pass parent (a task id) to create this itself as a subtask. New tasks are placed at the top of their section. The #id in responses is for your tool calls only — never repeat it to the user; refer to tasks by title. Requires a token with the write scope.',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
@@ -32,7 +32,7 @@ class CreateTask extends Tool
                     'section' => ['type' => ['string', 'integer']],
                     'labels' => ['type' => 'array', 'items' => ['type' => ['string', 'integer']]],
                     'parent' => ['type' => 'integer', 'description' => 'Optional parent task id — creates this as a subtask.'],
-                    'subtasks' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Optional child task titles created under this task in the same section.'],
+                    'subtasks' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Child task titles. This is the correct home for a step-by-step breakdown — use it instead of listing steps in description.'],
                 ],
                 'required' => ['title'],
             ],

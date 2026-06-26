@@ -23,7 +23,7 @@ class UpdateTask extends Tool
     {
         return [
             'name' => 'update_task',
-            'description' => 'Edit or move an existing task by id. Pass only the fields you want to change. Moving the section (id or name) places the task at the TOP of the destination and derives its status from that section (Done → done, In Progress → in_progress, anything else → todo). Setting status to in_progress also pulls the task into the In Progress section. A bare status of done does NOT complete a task — complete it by moving it into the Done section (or use complete_task). Requires a token with the write scope.',
+            'description' => 'Edit or move an existing task by id. Pass only the fields you want to change. Use the subtasks array (titles) to add a step-by-step breakdown as real child tasks — do NOT list steps in the description field. Moving the section (id or name) places the task at the TOP of the destination and derives its status from that section (Done → done, In Progress → in_progress, anything else → todo). Setting status to in_progress also pulls the task into the In Progress section. A bare status of done does NOT complete a task — complete it by moving it into the Done section (or use complete_task). The #id is for your tool calls only — never repeat it to the user; refer to tasks by title. Requires a token with the write scope.',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
