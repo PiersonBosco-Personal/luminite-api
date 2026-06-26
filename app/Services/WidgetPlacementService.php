@@ -6,8 +6,12 @@ final class WidgetPlacementService
 {
     public const COLS = 12;
 
-    /** A gap-filler's height may stretch up to this multiple of its default_h. */
-    public const float HEIGHT_STRETCH_FACTOR = 1.5;
+    /**
+     * A gap-filler's height may stretch up to this multiple of its default_h.
+     *
+     * @var float
+     */
+    public const HEIGHT_STRETCH_FACTOR = 1.5;
 
     /**
      * Position + NATURAL width for ONE new widget against the already-placed set.
