@@ -58,3 +58,51 @@ it('avoids overlap in an irregular manual layout', function () {
     $r = svc()->place($existing, wmeta(4, 4, 3, 3));
     expect(tuple($r))->toBe([0, 6, 4, 4]);
 });
+
+it('placeOne fills the gap width when slotting beside existing content', function () {
+    $existing = [new GridRect(0, 0, 4, 5)];           // activity at the left, leftover 8
+    $r = svc()->placeOne($existing, wmeta(4, 5, 3, 3)); // deadline: natural 4 → filled to 8
+    expect(tuple($r))->toBe([4, 0, 8, 5]);
+});
+
+it('placeOne keeps natural width for a widget that opens a new row', function () {
+    $existing = [new GridRect(0, 0, 8, 6)];
+    $r = svc()->placeOne($existing, wmeta(6, 5, 6, 4)); // min_w 6 > leftover 4 → new row, not stretched
+    expect(tuple($r))->toBe([0, 6, 6, 5]);
+});
+
+it('packSequence packs three small widgets across one band and stacks the rest', function () {
+    $rects = svc()->packSequence([
+        wmeta(8, 6, 8, 6),  // tasks_board
+        wmeta(6, 6, 4, 4),  // notes_list
+        wmeta(4, 5, 3, 3),  // activity_feed
+        wmeta(4, 5, 3, 3),  // deadline_tracker
+        wmeta(4, 4, 3, 3),  // label_breakdown
+        wmeta(4, 8, 3, 5),  // ai_chat
+    ]);
+    expect(array_map('tuple', $rects))->toBe([
+        [0, 0, 8, 6],   // board
+        [8, 0, 4, 6],   // notes (natural width 4)
+        [0, 6, 4, 5],   // activity
+        [4, 6, 4, 5],   // deadline
+        [8, 6, 4, 5],   // label — 3rd across, height matched to band (5)
+        [0, 11, 4, 8],  // ai_chat — band y6 full → new row
+    ]);
+});
+
+it('packSequence trailing-fills the last widget when a band has leftover', function () {
+    $rects = svc()->packSequence([
+        wmeta(6, 5, 4, 4),  // A: opens row, natural 6
+        wmeta(4, 5, 3, 3),  // B: slots beside at x=6, natural 4 → x+w=10, trailing 2
+    ]);
+    expect(array_map('tuple', $rects))->toBe([
+        [0, 0, 6, 5],
+        [6, 0, 6, 5],   // B stretched from 4 to 6 to fill the trailing 2
+    ]);
+});
+
+it('packSequence packs around protected existing widgets without moving them', function () {
+    $protect = [new GridRect(0, 0, 8, 6)];            // pre-existing board
+    $rects = svc()->packSequence([wmeta(4, 5, 3, 3)], $protect); // activity slots beside
+    expect(tuple($rects[0]))->toBe([8, 0, 4, 6]);
+});

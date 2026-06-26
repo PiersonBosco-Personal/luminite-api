@@ -55,6 +55,92 @@ final class WidgetPlacementService
     }
 
     /**
+     * Picker single-add: place(), then fill the band's trailing leftover when
+     * the widget landed as a gap-filler (x > 0). A new-row widget (x == 0)
+     * keeps its natural width.
+     *
+     * @param  GridRect[]  $existing
+     * @param  array{default_w:int,default_h:int,min_w:int,min_h:int}  $widget
+     */
+    public function placeOne(array $existing, array $widget): GridRect
+    {
+        $rect = $this->place($existing, $widget);
+
+        if ($rect->x > 0) {
+            $rect->w = self::COLS - $rect->x;
+        }
+
+        return $rect;
+    }
+
+    /**
+     * Batch packer (MCP init): place each widget in order against the
+     * accumulating set (plus any read-only $protect widgets), then trailing-fill
+     * the rightmost widget of every band that holds >= 2 widgets.
+     *
+     * @param  array{default_w:int,default_h:int,min_w:int,min_h:int}[]  $widgets  ordered
+     * @param  GridRect[]  $protect  already-placed widgets to pack around (never modified)
+     * @return GridRect[] one rect per input widget, in the same order
+     */
+    public function packSequence(array $widgets, array $protect = []): array
+    {
+        $placed = [];
+        foreach ($widgets as $widget) {
+            $placed[] = $this->place([...$protect, ...$placed], $widget);
+        }
+
+        $this->fillTrailing($placed, $protect);
+
+        return $placed;
+    }
+
+    /**
+     * Widen the rightmost widget of every band (grouped by top y) that holds
+     * >= 2 widgets, to consume trailing leftover. Only widgets in $mutable are
+     * modified; $protect widgets are considered for band membership and
+     * collision but never changed.
+     *
+     * @param  GridRect[]  $mutable  modified in place
+     * @param  GridRect[]  $protect
+     */
+    public function fillTrailing(array $mutable, array $protect = []): void
+    {
+        $all = [...$protect, ...$mutable];
+
+        $byBand = [];
+        foreach ($all as $rect) {
+            $byBand[$rect->y][] = $rect;
+        }
+
+        foreach ($byBand as $band) {
+            if (count($band) < 2) {
+                continue;
+            }
+
+            $last = $band[0];
+            foreach ($band as $r) {
+                if ($r->x + $r->w > $last->x + $last->w) {
+                    $last = $r;
+                }
+            }
+
+            if (! in_array($last, $mutable, true)) {
+                continue; // rightmost is a protected widget — never widen it
+            }
+
+            $trailing = self::COLS - ($last->x + $last->w);
+            if ($trailing <= 0) {
+                continue;
+            }
+
+            $others = array_filter($all, fn (GridRect $r) => $r !== $last);
+            if ($this->rectIsFree($others, $last->x, $last->y, $last->w + $trailing, $last->h)) {
+                $last->w += $trailing;
+            }
+        }
+    }
+
+    /**
      * Candidate band tops: 0 plus every existing widget's top, ascending & unique.
      * Sub-band gaps (existing widgets' bottoms) are not scanned here; that is
      * intentional for this first-fit pass.
