@@ -11,7 +11,7 @@ class GetSections extends Tool
     {
         return [
             'name'        => 'get_sections',
-            'description' => 'List all task sections (id, name) in board order. Call this to find a section id before creating or moving a task.',
+            'description' => 'List all task sections (id, name) in board order. Call this to find a section id before creating or moving a task. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => new \stdClass(),

@@ -12,7 +12,7 @@ class GetRecentActivity extends Tool
     {
         return [
             'name'        => 'get_recent_activity',
-            'description' => 'List recent project activity. Call this to catch up on what changed since you last worked, or to confirm a teammate has not already done something. Filter by since (ISO 8601) and limit.',
+            'description' => 'List recent project activity. Call this to catch up on what changed since you last worked, or to confirm a teammate has not already done something. Filter by since (ISO 8601) and limit. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [

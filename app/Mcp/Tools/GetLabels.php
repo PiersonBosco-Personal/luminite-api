@@ -11,7 +11,7 @@ class GetLabels extends Tool
     {
         return [
             'name'        => 'get_labels',
-            'description' => 'List all labels (id, name, color). Call this to find a label id before attaching it, or to check whether a label already exists.',
+            'description' => 'List all labels (id, name, color). Call this to find a label id before attaching it, or to check whether a label already exists. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => new \stdClass(),
