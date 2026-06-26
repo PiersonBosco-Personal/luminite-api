@@ -111,13 +111,18 @@ class WidgetSeeder extends Seeder
             ],
         ];
 
+        // Stubs that are registered but not yet built/functional. Not offered by
+        // initialize_project and shown as "Soon" (grayed) in the widget picker.
+        $unavailable = ['ai_chat', 'task_burndown', 'label_breakdown'];
+
         foreach ($widgets as $widget) {
             DB::table('widgets')->updateOrInsert(
                 ['slug' => $widget['slug']],
                 array_merge($widget, [
-                    'is_active'  => true,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'is_active'    => true,
+                    'is_available' => ! in_array($widget['slug'], $unavailable, true),
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
                 ])
             );
         }

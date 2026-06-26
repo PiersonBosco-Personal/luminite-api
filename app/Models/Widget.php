@@ -15,6 +15,7 @@ class Widget extends Model
         'default_config',
         'is_premium',
         'is_active',
+        'is_available',
         'sort_order',
         'default_w',
         'default_h',
@@ -28,6 +29,7 @@ class Widget extends Model
             'default_config' => 'array',
             'is_premium'     => 'boolean',
             'is_active'      => 'boolean',
+            'is_available'   => 'boolean',
         ];
     }
 
