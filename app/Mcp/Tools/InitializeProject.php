@@ -258,17 +258,15 @@ class InitializeProject extends Tool
             if ($payload['widgets']) {
                 $catalog = Widget::whereIn('slug', $payload['widgets'])->get()->keyBy('slug');
 
-                $existingSlugs = DashboardWidget::where('project_id', $projectId)
+                $existing = DashboardWidget::where('project_id', $projectId)
                     ->where('user_id', $userId)
-                    ->with('widget')
-                    ->get()
-                    ->pluck('widget.slug')
-                    ->all();
+                    ->with('widget:id,slug')
+                    ->get(['id', 'widget_id', 'grid_x', 'grid_y', 'grid_w', 'grid_h']);
+
+                $existingSlugs = $existing->pluck('widget.slug')->all();
 
                 // Pack new widgets around any already-placed ones without moving them.
-                $protect = DashboardWidget::where('project_id', $projectId)
-                    ->where('user_id', $userId)
-                    ->get(['grid_x', 'grid_y', 'grid_w', 'grid_h'])
+                $protect = $existing
                     ->map(fn ($w) => new GridRect($w->grid_x, $w->grid_y, $w->grid_w, $w->grid_h))
                     ->all();
 
