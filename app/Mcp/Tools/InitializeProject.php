@@ -112,7 +112,7 @@ class InitializeProject extends Tool
                         'description' => 'Widget catalog slugs; validated against the widgets table.',
                         'items' => ['type' => 'string'],
                     ],
-                    'confirm' => ['type' => 'boolean', 'description' => 'Set true to OVERWRITE an already-populated project. Destroys existing details, tech stack, sections, tasks, labels, and your dashboard widgets (notes and folders are kept). Cannot be undone.'],
+                    'confirm' => ['type' => 'boolean', 'description' => 'Set true to OVERWRITE an already-populated project. Destroys existing details, tech stack, sections, tasks, labels, and your dashboard widgets (notes and folders are kept). Cannot be undone. Preserved notes keep their text but lose any label tags (project labels are wiped).'],
                 ],
                 'required' => ['details'],
                 'additionalProperties' => false,
@@ -158,8 +158,8 @@ class InitializeProject extends Tool
                 return ['error' =>
                     'Error: this project is already initialized. Re-initializing will permanently '
                     .'overwrite its details, tech stack, sections, tasks, labels, and your '
-                    .'dashboard widgets (notes and folders are kept). This cannot be undone. '
-                    .'Confirm with the user, then call again with confirm: true.',
+                    .'dashboard widgets (notes and folders are kept, though notes lose any label tags). '
+                    .'This cannot be undone. Confirm with the user, then call again with confirm: true.',
                 ];
             }
 
@@ -339,6 +339,7 @@ class InitializeProject extends Tool
                     'tasks' => $taskCount,
                     'widgets' => $placed,
                     'triage' => $triageSeeded,
+                    'overwrote' => $notBlank && $confirm,
                 ],
             ];
         });
@@ -354,8 +355,13 @@ class InitializeProject extends Tool
         $project->refresh();
         broadcast(new ProjectInitialized($project, $projectId));
 
-        // 5. One activity row total — keeps the feed readable.
+        // 5. One activity row total — keeps the feed readable. An overwrite is
+        //    distinguished in the description so the feed reflects that existing
+        //    data was destroyed, while keeping the same project.initialized type.
         $c = $result['counts'];
+        $verb = $c['overwrote']
+            ? 're-initialized (overwrote existing data) via MCP'
+            : 'initialized project via MCP';
         app(ActivityLogService::class)->log(
             projectId: $projectId,
             userId: $userId,
@@ -363,11 +369,15 @@ class InitializeProject extends Tool
             subjectType: 'project',
             subjectLabel: $project->name,
             subjectId: $projectId,
-            description: "initialized project via MCP: {$c['sections']} sections, {$c['tasks']} tasks, {$c['stack']} tech stack entries",
+            description: "{$verb}: {$c['sections']} sections, {$c['tasks']} tasks, {$c['stack']} tech stack entries",
             viaMcp: true,
         );
 
-        return "Initialized project: details set, {$c['stack']} tech stack entries, "
+        $lead = $c['overwrote']
+            ? 'Re-initialized project (overwrote existing data):'
+            : 'Initialized project:';
+
+        return "{$lead} details set, {$c['stack']} tech stack entries, "
             ."{$c['sections']} sections, {$c['labels']} labels, {$c['tasks']} tasks, "
             ."{$c['widgets']} widgets placed"
             .($c['triage'] ? ', plus a Triage inbox section.' : '.');
