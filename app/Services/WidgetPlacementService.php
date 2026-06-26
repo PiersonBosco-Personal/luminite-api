@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-class WidgetPlacementService
+final class WidgetPlacementService
 {
     public const COLS = 12;
 
     /** A gap-filler's height may stretch up to this multiple of its default_h. */
-    public const HEIGHT_STRETCH_FACTOR = 1.5;
+    public const float HEIGHT_STRETCH_FACTOR = 1.5;
 
     /**
      * Position + NATURAL width for ONE new widget against the already-placed set.
@@ -56,6 +56,8 @@ class WidgetPlacementService
 
     /**
      * Candidate band tops: 0 plus every existing widget's top, ascending & unique.
+     * Sub-band gaps (existing widgets' bottoms) are not scanned here; that is
+     * intentional for this first-fit pass.
      *
      * @param  GridRect[]  $existing
      * @return int[]

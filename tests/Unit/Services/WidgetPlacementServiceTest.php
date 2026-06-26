@@ -5,7 +5,7 @@ use App\Services\WidgetPlacementService;
 
 function svc(): WidgetPlacementService
 {
-    return new WidgetPlacementService();
+    return new WidgetPlacementService;
 }
 
 /** @return array{default_w:int,default_h:int,min_w:int,min_h:int} */
