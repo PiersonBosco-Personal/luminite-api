@@ -69,16 +69,16 @@ class CreateNote extends Tool
         $content = $this->textToTiptap((string) ($args['content'] ?? ''));
 
         [$note, $folderCreated, $folder] = DB::transaction(function () use ($projectId, $userId, $taskId, $title, $content, $labelIds) {
-            [$folderId, $folderCreated] = $this->resolveClaudeFolder($projectId, $userId);
+            [$folder, $folderCreated] = $this->resolveClaudeFolder($projectId, $userId);
 
             // Position is scoped to the Claude folder so the notes tree orders correctly.
             $position = (int) Note::where('project_id', $projectId)
-                ->where('folder_id', $folderId)
+                ->where('folder_id', $folder->id)
                 ->max('position') + 1;
 
             $note = Note::create([
                 'project_id' => $projectId,
-                'folder_id'  => $folderId,
+                'folder_id'  => $folder->id,
                 'task_id'    => $taskId,
                 'created_by' => $userId,
                 'title'      => $title,
@@ -91,7 +91,7 @@ class CreateNote extends Tool
                 $note->labels()->sync($labelIds);
             }
 
-            return [$note, $folderCreated, $note->folder];
+            return [$note, $folderCreated, $folder];
         });
 
         if ($folderCreated && $folder) {

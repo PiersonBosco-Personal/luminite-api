@@ -1,8 +1,11 @@
 <?php
 
+use App\Events\NoteCreated;
+use App\Events\NoteFolderCreated;
 use App\Models\NoteFolder;
 use App\Models\Task;
 use App\Models\TaskSection;
+use Illuminate\Support\Facades\Event;
 
 function createNoteViaMcp($test, string $raw, array $args, int $id = 1): string
 {
@@ -20,7 +23,11 @@ function createNoteViaMcp($test, string $raw, array $args, int $id = 1): string
 it('places a new MCP note into a root-level Claude folder', function () {
     [$raw, $token, $project] = mcpToken([], ['read', 'write']);
 
+    Event::fake([NoteFolderCreated::class, NoteCreated::class]);
+
     createNoteViaMcp($this, $raw, ['title' => 'First note', 'content' => 'hello']);
+
+    Event::assertDispatched(NoteFolderCreated::class);
 
     $folder = NoteFolder::where('project_id', $project->id)->where('name', 'Claude')->first();
     expect($folder)->not->toBeNull()
@@ -34,8 +41,12 @@ it('places a new MCP note into a root-level Claude folder', function () {
 it('reuses the same Claude folder for a second note', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
 
+    Event::fake([NoteFolderCreated::class, NoteCreated::class]);
+
     createNoteViaMcp($this, $raw, ['title' => 'Note A'], 1);
     createNoteViaMcp($this, $raw, ['title' => 'Note B'], 2);
+
+    Event::assertDispatched(NoteFolderCreated::class, 1);
 
     expect(NoteFolder::where('project_id', $project->id)->where('name', 'Claude')->count())->toBe(1);
 });
