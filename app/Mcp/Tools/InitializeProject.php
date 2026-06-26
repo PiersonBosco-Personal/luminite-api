@@ -28,7 +28,7 @@ class InitializeProject extends Tool
     {
         return [
             'name' => 'initialize_project',
-            'description' => 'One-shot initialization of a BLANK project: sets the Details page (description, goals, architecture notes), tech stack, board sections, labels, tasks, and the calling user\'s starter dashboard widgets — atomically. Refuses if the project already has any of those (existing widgets do not block). task.section and task.labels are integer INDEXES into the sections/labels arrays of this same payload. Requires a token with the write scope.',
+            'description' => 'Initialize a project in one shot: Details page (description, goals, architecture notes), tech stack, board sections, labels, tasks, and the calling user\'s starter dashboard widgets — atomically. On a BLANK project it just populates. On a project that already has data it refuses unless you pass confirm:true, which performs a destructive clean-slate OVERWRITE of the init-managed data (notes and folders are preserved). task.section and task.labels are integer INDEXES into the sections/labels arrays of this same payload. Requires a token with the write scope.',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
@@ -112,6 +112,7 @@ class InitializeProject extends Tool
                         'description' => 'Widget catalog slugs; validated against the widgets table.',
                         'items' => ['type' => 'string'],
                     ],
+                    'confirm' => ['type' => 'boolean', 'description' => 'Set true to OVERWRITE an already-populated project. Destroys existing details, tech stack, sections, tasks, labels, and your dashboard widgets (notes and folders are kept). Cannot be undone.'],
                 ],
                 'required' => ['details'],
                 'additionalProperties' => false,
@@ -123,6 +124,7 @@ class InitializeProject extends Tool
     {
         $projectId = $this->projectId($request);
         $userId = $this->userId($request);
+        $confirm = ($args['confirm'] ?? false) === true;
 
         $project = Project::find($projectId);
         if (! $project) {
@@ -134,7 +136,7 @@ class InitializeProject extends Tool
             ->pluck('slug')
             ->all();
 
-        $result = DB::transaction(function () use ($args, $project, $projectId, $userId, $validSlugs) {
+        $result = DB::transaction(function () use ($args, $project, $projectId, $userId, $validSlugs, $confirm) {
             // 1. Blank-project guard — first, inside the transaction.
             //    Re-read under lock: a plain snapshot read could let two
             //    concurrent initializers both see a blank project.
@@ -152,13 +154,38 @@ class InitializeProject extends Tool
                 || Label::where('project_id', $projectId)->exists()
                 || Task::where('project_id', $projectId)->exists();
 
-            if ($notBlank) {
-                return ['error' => 'Error: project already initialized.'];
+            if ($notBlank && ! $confirm) {
+                return ['error' =>
+                    'Error: this project is already initialized. Re-initializing will permanently '
+                    .'overwrite its details, tech stack, sections, tasks, labels, and your '
+                    .'dashboard widgets (notes and folders are kept). This cannot be undone. '
+                    .'Confirm with the user, then call again with confirm: true.',
+                ];
+            }
+
+            if ($notBlank && $confirm) {
+                // Clean slate — delete only init-managed data, in FK-safe order.
+                // tasks first (nulls time_entries.task_id and notes.task_id via
+                // their nullOnDelete FKs), then sections, labels (cascades label
+                // pivots), tech stack, and this user's dashboard widgets.
+                Task::where('project_id', $projectId)->delete();
+                TaskSection::where('project_id', $projectId)->delete();
+                Label::where('project_id', $projectId)->delete();
+                TechStack::where('project_id', $projectId)->delete();
+                DashboardWidget::where('project_id', $projectId)
+                    ->where('user_id', $userId)
+                    ->delete();
             }
 
             // 2. Validate — every cap, enum, index range, unknown-key rule.
+            //    Strip the meta-flag 'confirm' before handing off; it is not
+            //    part of the initialization payload and the validator would
+            //    reject it as an unknown key.
             try {
-                $payload = (new InitializeProjectPayload)->validate($args, $validSlugs);
+                $payload = (new InitializeProjectPayload)->validate(
+                    array_diff_key($args, ['confirm' => true]),
+                    $validSlugs
+                );
             } catch (ToolInputException $e) {
                 return ['error' => 'Error: '.$e->getMessage()];
             }
