@@ -98,7 +98,8 @@ final class WidgetPlacementService
      * Widen the rightmost widget of every band (grouped by top y) that holds
      * >= 2 widgets, to consume trailing leftover. Only widgets in $mutable are
      * modified; $protect widgets are considered for band membership and
-     * collision but never changed.
+     * collision but never changed. Rects in $mutable must be non-overlapping
+     * (as guaranteed by place()).
      *
      * @param  GridRect[]  $mutable  modified in place
      * @param  GridRect[]  $protect
@@ -117,6 +118,9 @@ final class WidgetPlacementService
                 continue;
             }
 
+            // Strict >: on a tie the earlier rect wins. $all is protect-first,
+            // so a tied protected widget is chosen and the band is
+            // conservatively skipped.
             $last = $band[0];
             foreach ($band as $r) {
                 if ($r->x + $r->w > $last->x + $last->w) {

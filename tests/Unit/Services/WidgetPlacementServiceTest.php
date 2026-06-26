@@ -106,3 +106,10 @@ it('packSequence packs around protected existing widgets without moving them', f
     $rects = svc()->packSequence([wmeta(4, 5, 3, 3)], $protect); // activity slots beside
     expect(tuple($rects[0]))->toBe([8, 0, 4, 6]);
 });
+
+it('fillTrailing does not widen a mutable widget when the rightmost is protected', function () {
+    $protect = [new GridRect(8, 0, 4, 5)];                          // rightmost: x+w = 12
+    $mutable = [new GridRect(0, 0, 6, 5), new GridRect(6, 0, 2, 5)]; // mutable-rightmost x+w = 8
+    svc()->fillTrailing($mutable, $protect);
+    expect([$mutable[0]->w, $mutable[1]->w])->toBe([6, 2]);         // neither widened
+});
