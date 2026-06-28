@@ -69,7 +69,8 @@ it('overwrites init-managed data on confirm:true and preserves notes', function 
         'confirm' => true,
     ]);
 
-    expect($text)->toContain('Re-initialized project (overwrote existing data):');
+    // The response reports what was destroyed — a "removed 0" here would flag a no-op overwrite.
+    expect($text)->toContain('Re-initialized project (removed 1 tasks, 1 labels, 1 sections, 1 tech-stack entries, 1 of your widgets):');
     expect($project->fresh()->description)->toBe('Fresh desc');
     expect(Task::where('project_id', $project->id)->where('title', 'Old task')->exists())->toBeFalse();
     expect(Label::where('project_id', $project->id)->where('name', 'oldlabel')->exists())->toBeFalse();

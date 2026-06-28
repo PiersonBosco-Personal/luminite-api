@@ -5,12 +5,23 @@ namespace App\Mcp\Prompts;
 class InitializeProjectPrompt extends Prompt
 {
     private const TEXT = <<<'PROMPT'
-You are initializing a Luminite project. Follow these steps exactly, in order.
+You are initializing a Luminite project. Your MCP token is bound to ONE specific,
+already-existing project — the one this token belongs to. You cannot create, switch to,
+or reach any other project. NEVER offer to "make a new project" or a "blank project" —
+that is impossible here. The only project you can act on is this one.
 
-1. Call get_session_context. If the project already has any of: a description, goals,
-   architecture notes, tech stack entries, sections, labels, or tasks — STOP. Tell the
-   user this project is already initialized; initialize_project only works on a blank
-   project.
+Follow these steps exactly, in order.
+
+1. Call get_session_context to read the project's current state.
+   - If it is blank (no description, goals, architecture notes, tech stack, sections,
+     labels, or tasks), continue to step 2 for a first-time initialization.
+   - If it ALREADY has any of those, it is initialized. Do NOT suggest creating another
+     project — you can't. The only path forward is a destructive OVERWRITE
+     (initialize_project with confirm: true), which permanently deletes the existing
+     details, tech stack, sections, tasks, labels, and the user's dashboard widgets and
+     replaces them with a fresh payload (notes and folders are kept, though notes lose
+     any label tags). Offer this only if the user genuinely wants to start the project
+     over; if not, leave everything untouched.
 
 2. Scan the repository: README, package.json / composer.json / pyproject.toml or
    equivalents, the folder structure, and any existing docs. From evidence only, draft:
@@ -32,11 +43,14 @@ You are initializing a Luminite project. Follow these steps exactly, in order.
    - labels: max 10 of {name (up to 50 chars), color}; color is any hex like #c0392b
      — pick distinguishable colors that suit a dark blue UI
    - tasks: max 25 of {title (required, up to 200 chars), description (up to 2000),
-     priority (low|medium|high|urgent, default medium), section, labels};
+     priority (low|medium|high|urgent, default medium), section, labels}. Keep the
+     description for context — break work into steps later with create_task subtasks,
+     not as a step list inside description.
      IMPORTANT: section and labels are integer INDEXES into the sections[] and labels[]
      arrays of this same payload — not ids, not names
-   - widgets: max 6 catalog slugs from: tasks_board, notes_list, activity_feed, ai_chat,
-     task_burndown, deadline_tracker, label_breakdown, time_tracker, time_report
+   - widgets: max 6 catalog slugs, ONLY from the built set:
+     tasks_board, notes_list, activity_feed, deadline_tracker, time_tracker, time_report.
+     The server rejects any other slug.
 
 5. Show the user the COMPLETE draft, then get their explicit approval.
    CRITICAL — how to show it: print the entire draft as plain, readable markdown
@@ -51,12 +65,22 @@ You are initializing a Luminite project. Follow these steps exactly, in order.
    Do not call the tool before they approve. Revise and re-print the full draft if they
    ask for changes.
 
-6. After approval, call initialize_project exactly once with the approved payload.
-   The server validates everything and applies it atomically. If it returns an error,
-   fix the payload and retry.
+   FOR AN OVERWRITE, this approval step is mandatory and stricter, because it destroys
+   existing data. Re-print the full draft, and directly above your question state plainly
+   what will be destroyed using the real current counts from get_session_context — e.g.
+   "This permanently deletes the existing N tasks, N labels, N sections, N tech-stack
+   entries and your dashboard widgets, then replaces them with the draft above. This
+   cannot be undone." A menu pick, a "2", or a "try again" is NOT approval of the payload
+   — wait for an explicit yes to THIS draft before proceeding.
 
-7. Report the result and tell the user to open the project in Luminite to see the
-   Details page, taskboard, and dashboard widgets.
+6. After explicit approval, call initialize_project exactly once with the approved
+   payload — add confirm: true ONLY for an overwrite. The server validates everything and
+   applies it atomically. If it returns an error, fix the payload and retry (re-confirm
+   with the user first if the content changed).
+
+7. Report the result — including the removed/created counts the tool returns on an
+   overwrite — and tell the user to open the project in Luminite to see the Details page,
+   taskboard, and dashboard widgets.
 PROMPT;
 
     public function definition(): array

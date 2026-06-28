@@ -163,16 +163,19 @@ class InitializeProject extends Tool
                 ];
             }
 
+            // Track what the overwrite destroys so the response can report it —
+            // an empty wipe on a non-blank project would otherwise be invisible.
+            $deleted = ['tasks' => 0, 'sections' => 0, 'labels' => 0, 'stack' => 0, 'widgets' => 0];
             if ($notBlank && $confirm) {
                 // Clean slate — delete only init-managed data, in FK-safe order.
                 // tasks first (nulls time_entries.task_id and notes.task_id via
                 // their nullOnDelete FKs), then sections, labels (cascades label
                 // pivots), tech stack, and this user's dashboard widgets.
-                Task::where('project_id', $projectId)->delete();
-                TaskSection::where('project_id', $projectId)->delete();
-                Label::where('project_id', $projectId)->delete();
-                TechStack::where('project_id', $projectId)->delete();
-                DashboardWidget::where('project_id', $projectId)
+                $deleted['tasks']    = Task::where('project_id', $projectId)->delete();
+                $deleted['sections'] = TaskSection::where('project_id', $projectId)->delete();
+                $deleted['labels']   = Label::where('project_id', $projectId)->delete();
+                $deleted['stack']    = TechStack::where('project_id', $projectId)->delete();
+                $deleted['widgets']  = DashboardWidget::where('project_id', $projectId)
                     ->where('user_id', $userId)
                     ->delete();
             }
@@ -340,6 +343,7 @@ class InitializeProject extends Tool
                     'widgets' => $placed,
                     'triage' => $triageSeeded,
                     'overwrote' => $notBlank && $confirm,
+                    'deleted' => $deleted,
                 ],
             ];
         });
@@ -359,6 +363,15 @@ class InitializeProject extends Tool
         //    distinguished in the description so the feed reflects that existing
         //    data was destroyed, while keeping the same project.initialized type.
         $c = $result['counts'];
+        $d = $c['deleted'];
+        // Make the destructive wipe visible: report what was removed before the
+        // fresh content was written. A "removed 0" here on a populated project
+        // would immediately flag a no-op overwrite.
+        $removed = $c['overwrote']
+            ? " (removed {$d['tasks']} tasks, {$d['labels']} labels, {$d['sections']} sections, "
+                ."{$d['stack']} tech-stack entries, {$d['widgets']} of your widgets)"
+            : '';
+
         $verb = $c['overwrote']
             ? 're-initialized (overwrote existing data) via MCP'
             : 'initialized project via MCP';
@@ -369,12 +382,12 @@ class InitializeProject extends Tool
             subjectType: 'project',
             subjectLabel: $project->name,
             subjectId: $projectId,
-            description: "{$verb}: {$c['sections']} sections, {$c['tasks']} tasks, {$c['stack']} tech stack entries",
+            description: "{$verb}{$removed}: {$c['sections']} sections, {$c['tasks']} tasks, {$c['stack']} tech stack entries",
             viaMcp: true,
         );
 
         $lead = $c['overwrote']
-            ? 'Re-initialized project (overwrote existing data):'
+            ? "Re-initialized project{$removed}:"
             : 'Initialized project:';
 
         return "{$lead} details set, {$c['stack']} tech stack entries, "
