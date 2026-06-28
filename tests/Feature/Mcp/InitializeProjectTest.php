@@ -81,9 +81,9 @@ it('initializes a blank project end to end', function () {
     expect(TechStack::where('project_id', $project->id)->count())->toBe(3)
         ->and($reverb->parent_id)->toBe($laravel->id);
 
-    // sections in payload order — Triage inbox is always seeded last when the payload omits it
+    // sections in payload order
     $names = TaskSection::where('project_id', $project->id)->orderBy('position')->pluck('name')->all();
-    expect($names)->toBe(['Backlog', 'In Progress', 'Done', 'Triage']);
+    expect($names)->toBe(['Backlog', 'In Progress', 'Done']);
 
     // labels with their hex colors
     expect(Label::where('project_id', $project->id)->where('name', 'bug')->first()->color)->toBe('#c0392b');
@@ -248,16 +248,3 @@ it('rejects invalid payloads end to end and writes nothing', function (array $ov
     'unknown widget' => [['widgets' => ['not_a_widget']], 'widgets[0]'],
 ]);
 
-it('initialize_project seeds a Triage inbox when the payload omits one', function () {
-    [$raw, , $project] = initBlankToken();
-
-    $this->withToken($raw)->postJson('/api/mcp', [
-        'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 70,
-        'params' => ['name' => 'initialize_project', 'arguments' => [
-            'details' => ['description' => 'A project'],
-            'sections' => ['Backlog', 'Done'],
-        ]],
-    ])->assertStatus(200);
-
-    expect(TaskSection::where('project_id', $project->id)->whereRaw('LOWER(name) = ?', ['triage'])->exists())->toBeTrue();
-});

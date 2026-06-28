@@ -170,20 +170,6 @@ it('create_task inserts the new task at the top of the section', function () {
         ->and($existing->fresh()->position)->toBe(1);
 });
 
-it('create_task lands an unsectioned task in the Triage inbox when one exists', function () {
-    [$raw, , $project] = mcpToken([], ['read', 'write']);
-    TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);
-    $triage = TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Triage', 'position' => 1]);
-
-    $this->withToken($raw)
-        ->postJson('/api/mcp', [
-            'jsonrpc' => '2.0', 'method' => 'tools/call', 'id' => 22,
-            'params' => ['name' => 'create_task', 'arguments' => ['title' => 'Unsorted']],
-        ])->assertStatus(200);
-
-    expect(Task::where('title', 'Unsorted')->first()->section_id)->toBe($triage->id);
-});
-
 it('create_task response leads with the task name, not the id', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
     TaskSection::factory()->create(['project_id' => $project->id, 'name' => 'Backlog', 'position' => 0]);

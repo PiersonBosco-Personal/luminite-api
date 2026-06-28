@@ -231,25 +231,6 @@ class InitializeProject extends Tool
                 ])->id;
             }
 
-            // 3c-bis. Always ensure a Triage inbox exists — the default landing
-            // section for unsorted tasks created later via create_task.
-            $triageSeeded = false;
-            $hasTriage = false;
-            foreach ($payload['sections'] as $name) {
-                if (strtolower($name) === 'triage') {
-                    $hasTriage = true;
-                    break;
-                }
-            }
-            if (! $hasTriage) {
-                TaskSection::create([
-                    'project_id' => $projectId,
-                    'name' => 'Triage',
-                    'position' => count($sectionIds),
-                ]);
-                $triageSeeded = true;
-            }
-
             // 3d. Labels
             $labelIds = [];
             foreach ($payload['labels'] as $label) {
@@ -341,7 +322,6 @@ class InitializeProject extends Tool
                     'labels' => count($labelIds),
                     'tasks' => $taskCount,
                     'widgets' => $placed,
-                    'triage' => $triageSeeded,
                     'overwrote' => $notBlank && $confirm,
                     'deleted' => $deleted,
                 ],
@@ -392,7 +372,6 @@ class InitializeProject extends Tool
 
         return "{$lead} details set, {$c['stack']} tech stack entries, "
             ."{$c['sections']} sections, {$c['labels']} labels, {$c['tasks']} tasks, "
-            ."{$c['widgets']} widgets placed"
-            .($c['triage'] ? ', plus a Triage inbox section.' : '.');
+            ."{$c['widgets']} widgets placed.";
     }
 }

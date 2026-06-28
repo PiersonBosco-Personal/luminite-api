@@ -37,10 +37,10 @@ trait ResolvesTaskInput
         return $found->id;
     }
 
-    /** Lowest-position section in the project. */
+    /** Section with the first (lowest) id — the default landing for a task created without a section. */
     protected function defaultSectionId(int $projectId): int
     {
-        $section = TaskSection::where('project_id', $projectId)->orderBy('position')->first();
+        $section = TaskSection::where('project_id', $projectId)->orderBy('id')->first();
 
         if (! $section) {
             throw new ToolInputException('This project has no sections to place the task in.');
@@ -72,12 +72,6 @@ trait ResolvesTaskInput
         return TaskSection::where('project_id', $projectId)
             ->whereRaw('LOWER(name) = ?', [strtolower($name)])
             ->value('id');
-    }
-
-    /** Default landing section for a created task: the Triage inbox if it exists, else the lowest-position section. */
-    protected function inboxSectionId(int $projectId): int
-    {
-        return $this->sectionIdByName($projectId, 'Triage') ?? $this->defaultSectionId($projectId);
     }
 
     /** Shift every task in a section down by one position, freeing position 0 for a new/moved task (top-of-section insert). */

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Mcp\McpServer;
 use App\Mcp\Prompts\InitializeProjectPrompt;
-use App\Mcp\Prompts\TriageTodosPrompt;
 use App\Mcp\Prompts\WrapUpPrompt;
 use App\Mcp\Tools\CompleteTask;
 use App\Mcp\Tools\CreateNote;
@@ -46,7 +45,6 @@ class McpController extends Controller
             new InitializeProject,
         ], [
             new InitializeProjectPrompt,
-            new TriageTodosPrompt,
             new WrapUpPrompt,
         ]);
 

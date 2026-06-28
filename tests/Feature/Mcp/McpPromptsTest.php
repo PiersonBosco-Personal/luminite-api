@@ -55,24 +55,6 @@ it('prompts/get returns -32602 for an unknown prompt', function () {
         ->assertJsonPath('error.code', -32602);
 });
 
-it('lists and returns the triage-todos prompt', function () {
-    [$raw] = mcpToken();
-
-    $names = collect($this->withToken($raw)
-        ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'prompts/list', 'id' => 1])
-        ->json('result.prompts'))->pluck('name');
-    expect($names)->toContain('triage-todos');
-
-    $this->withToken($raw)
-        ->postJson('/api/mcp', [
-            'jsonrpc' => '2.0', 'method' => 'prompts/get', 'id' => 2,
-            'params'  => ['name' => 'triage-todos'],
-        ])
-        ->assertStatus(200)
-        ->assertJsonPath('result.messages.0.role', 'user')
-        ->assertJsonPath('result.messages.0.content.text', fn ($t) => str_contains($t, 'Triage'));
-});
-
 it('lists and returns the wrap-up prompt', function () {
     [$raw] = mcpToken();
 
