@@ -222,8 +222,21 @@ class McpServer
 
         // Push the new entry to any open Claude MCP pages in real time. The trigger
         // is Claude Code (not a browser socket), so broadcast to everyone — no toOthers().
+        // Best-effort: a broadcasting outage (e.g. Reverb down) must never turn a
+        // successful tool call into a failure.
         if ($history->project_id) {
-            broadcast(new McpActivityCreated($history, (int) $history->project_id));
+            try {
+                // unset() forces the PendingBroadcast to dispatch HERE so a
+                // synchronous broadcast failure is caught rather than escaping
+                // via the destructor after the tool has already succeeded.
+                $pending = broadcast(new McpActivityCreated($history, (int) $history->project_id));
+                unset($pending);
+            } catch (\Throwable $e) {
+                Log::warning('McpActivityCreated broadcast failed; history was still recorded.', [
+                    'project_id' => $history->project_id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
         }
     }
 
