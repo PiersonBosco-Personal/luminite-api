@@ -6,7 +6,7 @@ use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -17,11 +17,13 @@ use Illuminate\Queue\SerializesModels;
  * widgets at once, clients listen for this single event and refetch every affected
  * surface, rather than reacting to a burst of per-entity create events.
  *
- * Broadcasts NOW (synchronously), not via the queue: this is a one-shot,
- * MCP-triggered bulk signal and must reach open clients the moment the call
- * returns, without depending on a running queue worker.
+ * Queued (ShouldBroadcast), like every other event: it is delivered by the queue
+ * worker, which is the process that can reach Reverb. Broadcasting it synchronously
+ * from the web/MCP request instead made it depend on the web process reaching
+ * Reverb — which failed in environments where only the worker can — so the widget
+ * refetch never fired while queued events (e.g. the activity feed) worked fine.
  */
-class ProjectInitialized implements ShouldBroadcastNow
+class ProjectInitialized implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

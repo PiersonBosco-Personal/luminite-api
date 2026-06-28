@@ -16,7 +16,6 @@ use App\Services\GridRect;
 use App\Services\WidgetPlacementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class InitializeProject extends Tool
 {
@@ -338,20 +337,7 @@ class InitializeProject extends Tool
         //    ProjectInitialized event; clients refetch every affected surface
         //    from it rather than reacting to a burst of per-entity events.
         $project->refresh();
-        // Best-effort realtime push. The write has already committed; a broadcasting
-        // outage (e.g. Reverb not running) must never make this committed init/overwrite
-        // report failure to the caller.
-        try {
-            // unset() forces the PendingBroadcast to dispatch HERE (its destructor
-            // does the actual send), so a synchronous broadcast failure is caught.
-            $pending = broadcast(new ProjectInitialized($project, $projectId));
-            unset($pending);
-        } catch (\Throwable $e) {
-            Log::warning('ProjectInitialized broadcast failed; project was still initialized.', [
-                'project_id' => $projectId,
-                'error'      => $e->getMessage(),
-            ]);
-        }
+        broadcast(new ProjectInitialized($project, $projectId));
 
         // 5. One activity row total — keeps the feed readable. An overwrite is
         //    distinguished in the description so the feed reflects that existing

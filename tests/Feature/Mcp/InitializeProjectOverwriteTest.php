@@ -89,38 +89,6 @@ it('overwrites init-managed data on confirm:true and preserves notes', function 
     expect(NoteFolder::whereKey($folder->id)->exists())->toBeTrue();
 });
 
-it('still succeeds when broadcasting fails (e.g. Reverb is down)', function () {
-    // Replicate a dead Reverb: the synchronous ProjectInitialized broadcast throws.
-    // The write has already committed, so the tool must still report success.
-    Illuminate\Support\Facades\Broadcast::extend('throwing', fn () => new class implements Illuminate\Contracts\Broadcasting\Broadcaster
-    {
-        public function auth($request) {}
-
-        public function validAuthenticationResponse($request, $result) {}
-
-        public function broadcast(array $channels, $event, array $payload = [])
-        {
-            throw new RuntimeException('reverb down');
-        }
-    });
-    // null queue models a normal async-queue deploy: ShouldBroadcast events are
-    // queued (not sent inline), so only the ShouldBroadcastNow ProjectInitialized
-    // broadcasts synchronously — exactly the path that failed when Reverb was down.
-    config([
-        'broadcasting.default' => 'throwing',
-        'broadcasting.connections.throwing' => ['driver' => 'throwing'],
-        'queue.default' => 'null',
-    ]);
-
-    [$raw, , $project] = mcpToken(['description' => null], ['read', 'write']);
-
-    $text = callInit($this, $raw, ['details' => ['description' => 'Hello'], 'sections' => ['Backlog']]);
-
-    expect($text)->toContain('Initialized project');
-    expect($project->fresh()->description)->toBe('Hello');
-    expect(TaskSection::where('project_id', $project->id)->where('name', 'Backlog')->exists())->toBeTrue();
-});
-
 it('still initializes a blank project without confirm', function () {
     [$raw, , $project] = mcpToken(['description' => null], ['read', 'write']);
 
