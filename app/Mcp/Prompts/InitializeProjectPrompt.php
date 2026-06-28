@@ -39,7 +39,10 @@ Follow these steps exactly, in order.
      (each up to 5000 chars)
    - tech_stack: max 30 entries counting parents and children; name up to 100 chars,
      version up to 50
-   - sections: max 6 names (array order = board order), e.g. Backlog / In Progress / Done
+   - sections: max 6 names (array order = board order), e.g. Backlog / In Progress / Done.
+     Do NOT add a "Triage", "Inbox", or any holding/unsorted section — there is no inbox
+     concept. A task created without a section automatically lands in the first section.
+     Only propose sections that represent real workflow stages.
    - labels: max 10 of {name (up to 50 chars), color}; color is any hex like #c0392b
      — pick distinguishable colors that suit a dark blue UI
    - tasks: max 25 of {title (required, up to 200 chars), description (up to 2000),
