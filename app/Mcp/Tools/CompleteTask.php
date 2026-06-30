@@ -23,13 +23,15 @@ class CompleteTask extends Tool
     {
         return [
             'name' => 'complete_task',
-            'description' => 'Mark a task done by id, with optional completion notes. Notes are recorded in the activity feed, not on the task body. The task is moved to the project\'s "Done" section by default; pass section (id or name) to move it elsewhere. If no "Done" section exists the task is still completed and the response asks you to pick a section with the user — then call complete_task again with the section argument. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title. Requires a token with the write scope.',
+            'description' => 'Mark a task done by id. ALWAYS pass summary (what actually changed, 1-2 sentences) and rationale (why it made sense) so your teammate understands the change without asking you out loud — these become the team changelog. notes is recorded in the activity feed, not on the task body. The task is moved to the project\'s "Done" section by default; pass section (id or name) to move it elsewhere. If no "Done" section exists the task is still completed and the response asks you to pick a section with the user — then call complete_task again with the section argument. The #id/[id] shown is for your tool calls only — never repeat it to the user; refer to items by title. Requires a token with the write scope.',
             'inputSchema' => [
                 'type' => 'object',
                 'properties' => [
                     'task_id' => ['type' => 'integer'],
                     'notes' => ['type' => 'string'],
                     'section' => ['type' => ['string', 'integer']],
+                    'summary'   => ['type' => 'string'],
+                    'rationale' => ['type' => 'string'],
                 ],
                 'required' => ['task_id'],
             ],
@@ -78,6 +80,14 @@ class CompleteTask extends Tool
         $task->load('assignee', 'labels');
 
         broadcast(new TaskUpdated($task, $projectId));
+
+        app(\App\Services\TaskCompletionService::class)->record(
+            task: $task,
+            userId: $userId,
+            what: $args['summary'] ?? null,
+            why: $args['rationale'] ?? null,
+            source: 'claude',
+        );
 
         $notes = trim((string) ($args['notes'] ?? ''));
         $suffix = $notes !== '' ? " — {$notes}" : '';
