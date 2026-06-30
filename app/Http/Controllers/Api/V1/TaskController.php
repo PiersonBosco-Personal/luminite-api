@@ -97,6 +97,14 @@ class TaskController extends Controller
                     subjectId:    $task->id,
                     description:  "{$actorName} completed {$task->title}",
                 );
+
+                app(\App\Services\TaskCompletionService::class)->record(
+                    task: $task,
+                    userId: auth()->id(),
+                    what: $validated['what_changed'] ?? null,
+                    why: null,
+                    source: 'human',
+                );
             } elseif ($originalStatus === 'done') {
                 $this->activity->log(
                     projectId:    $project->id,

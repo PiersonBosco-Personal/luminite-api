@@ -24,6 +24,7 @@ class UpdateTaskRequest extends FormRequest
             'due_date'       => 'sometimes|nullable|date',
             'position'          => 'sometimes|integer|min:0',
             'estimated_minutes' => 'sometimes|nullable|integer|min:0',
+            'what_changed'      => 'sometimes|nullable|string|max:2000',
         ];
     }
 }
