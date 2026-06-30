@@ -109,6 +109,17 @@ class WidgetSeeder extends Seeder
                 'min_w'       => 4,
                 'min_h'       => 4,
             ],
+            [
+                'slug'        => 'change_log',
+                'name'        => 'Changelog',
+                'category'    => 'analytics',
+                'description' => 'What changed and why on each completed task — by you and your teammate.',
+                'icon'        => 'history',
+                'default_w'   => 4,
+                'default_h'   => 6,
+                'min_w'       => 3,
+                'min_h'       => 4,
+            ],
         ];
 
         // Stubs that are registered but not yet built/functional. Not offered by
