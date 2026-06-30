@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AiController;
 use App\Http\Controllers\McpController;
 use App\Http\Controllers\Api\V1\AttachmentController;
 use App\Http\Controllers\Api\V1\AttachmentFolderController;
+use App\Http\Controllers\Api\V1\ChangelogController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\ProjectInvitationController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -144,6 +145,11 @@ Route::prefix('v1')->group(function () {
 
             // Activity feed
             Route::get('/projects/{project}/activity', [ActivityController::class, 'index']);
+
+            // Changelog
+            Route::get('/projects/{project}/changelog',         [ChangelogController::class, 'index']);
+            Route::get('/projects/{project}/changelog/digest',  [ChangelogController::class, 'digest']);
+            Route::post('/projects/{project}/changelog/viewed', [ChangelogController::class, 'viewed']);
 
             // AI (stubs — Phase 4)
             Route::get('/projects/{project}/ai/conversations',    [AiController::class, 'index']);
