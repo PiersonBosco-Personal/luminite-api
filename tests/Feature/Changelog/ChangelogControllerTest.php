@@ -22,7 +22,7 @@ it('returns the archive feed newest-first for a member', function () {
     $data = $this->getJson("/api/v1/projects/{$project->id}/changelog")
         ->assertStatus(200)->json('data');
 
-    expect($data)->toHaveCount(1)                       // latest-canonical per task
+    expect($data)->toHaveCount(1)
         ->and($data[0]['summary_what'])->toBe('newer');
 });
 
@@ -34,56 +34,72 @@ it('blocks non-members from the changelog', function () {
     $this->getJson("/api/v1/projects/{$project->id}/changelog")->assertStatus(403);
 });
 
-it('digest shows only the OTHER members completions and is empty on first read', function () {
-    $user    = actingAsUser();
-    $project = createProject($user);                    // $user is owner+member, anchor null
-    $coworker = User::factory()->create();
-    ProjectMember::create(['project_id' => $project->id, 'user_id' => $coworker->id, 'role' => 'member']);
-
-    $task = Task::factory()->create(['project_id' => $project->id]);
-    TaskCompletion::factory()->create([
-        'task_id' => $task->id, 'completed_by_user_id' => $coworker->id,
-        'summary_what' => 'before view', 'source' => 'claude', 'created_at' => now()->subMinute(),
-    ]);
-
-    // First read: null anchor → baseline init (now), empty digest ("all caught up").
-    $first = $this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->assertStatus(200);
-    expect($first->json('data'))->toHaveCount(0)
-        ->and($first->json('meta.unread_count'))->toBe(0);
-
-    // A NEW coworker completion clearly AFTER the baseline now shows.
-    $task2 = Task::factory()->create(['project_id' => $project->id]);
-    TaskCompletion::factory()->create([
-        'task_id' => $task2->id, 'completed_by_user_id' => $coworker->id,
-        'summary_what' => 'after baseline', 'source' => 'claude', 'created_at' => now()->addMinute(),
-    ]);
-
-    $second = $this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->assertStatus(200);
-    expect($second->json('data'))->toHaveCount(1)
-        ->and($second->json('data.0.summary_what'))->toBe('after baseline')
-        ->and($second->json('meta.unread_count'))->toBe(1);
-});
-
-it('viewed advances the anchor and clears the digest', function () {
+it('first digest view shows recent completions by others, excluding old and own', function () {
     $user    = actingAsUser();
     $project = createProject($user);
     $coworker = User::factory()->create();
     ProjectMember::create(['project_id' => $project->id, 'user_id' => $coworker->id, 'role' => 'member']);
-    $this->getJson("/api/v1/projects/{$project->id}/changelog/digest"); // baseline init
+
+    $recent = Task::factory()->create(['project_id' => $project->id]);
+    TaskCompletion::factory()->create([
+        'task_id' => $recent->id, 'completed_by_user_id' => $coworker->id,
+        'summary_what' => 'recent change', 'source' => 'claude', 'created_at' => now()->subDay(),
+    ]);
+    $old = Task::factory()->create(['project_id' => $project->id]);
+    TaskCompletion::factory()->create([
+        'task_id' => $old->id, 'completed_by_user_id' => $coworker->id,
+        'summary_what' => 'old change', 'source' => 'claude', 'created_at' => now()->subDays(30),
+    ]);
+    $mine = Task::factory()->create(['project_id' => $project->id]);
+    TaskCompletion::factory()->create([
+        'task_id' => $mine->id, 'completed_by_user_id' => $user->id,
+        'summary_what' => 'mine', 'source' => 'human', 'created_at' => now()->subHour(),
+    ]);
+
+    $res = $this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->assertStatus(200);
+    $whats = collect($res->json('data'))->pluck('summary_what')->all();
+
+    expect($whats)->toContain('recent change')
+        ->and($whats)->not->toContain('old change')
+        ->and($whats)->not->toContain('mine')
+        ->and($res->json('meta.unread_count'))->toBe(1);
+});
+
+it('a digest read does not advance the anchor; only viewing does', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $coworker = User::factory()->create();
+    ProjectMember::create(['project_id' => $project->id, 'user_id' => $coworker->id, 'role' => 'member']);
 
     $task = Task::factory()->create(['project_id' => $project->id]);
     TaskCompletion::factory()->create([
         'task_id' => $task->id, 'completed_by_user_id' => $coworker->id,
-        'summary_what' => 'unseen', 'source' => 'claude', 'created_at' => now()->addMinute(),
+        'summary_what' => 'recent', 'source' => 'claude', 'created_at' => now()->subDay(),
     ]);
 
-    // Confirm it WOULD show before viewing.
-    expect($this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->json('data'))->toHaveCount(1);
+    $this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->assertStatus(200);
+    $second = $this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->assertStatus(200);
+    expect($second->json('meta.unread_count'))->toBe(1);
 
-    // Travel past the completion's timestamp so "now" (the new anchor) is after it.
-    $this->travelTo(now()->addMinutes(2));
+    $member = ProjectMember::where('project_id', $project->id)->where('user_id', $user->id)->first();
+    expect($member?->last_viewed_changelog_at)->toBeNull();
+});
+
+it('viewing advances the anchor and clears the digest', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+    $coworker = User::factory()->create();
+    ProjectMember::create(['project_id' => $project->id, 'user_id' => $coworker->id, 'role' => 'member']);
+
+    $task = Task::factory()->create(['project_id' => $project->id]);
+    TaskCompletion::factory()->create([
+        'task_id' => $task->id, 'completed_by_user_id' => $coworker->id,
+        'summary_what' => 'unseen', 'source' => 'claude', 'created_at' => now()->subDay(),
+    ]);
+
+    expect($this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->json('meta.unread_count'))->toBe(1);
+
     $this->postJson("/api/v1/projects/{$project->id}/changelog/viewed")->assertStatus(200);
 
-    expect($this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->json('data'))->toHaveCount(0);
-    $this->travelBack();
+    expect($this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->json('meta.unread_count'))->toBe(0);
 });
