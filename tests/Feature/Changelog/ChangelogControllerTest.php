@@ -103,3 +103,35 @@ it('viewing advances the anchor and clears the digest', function () {
 
     expect($this->getJson("/api/v1/projects/{$project->id}/changelog/digest")->json('meta.unread_count'))->toBe(0);
 });
+
+it('filters the archive by search across summary and task title', function () {
+    $user    = actingAsUser();
+    $project = createProject($user);
+
+    $t1 = Task::factory()->create(['project_id' => $project->id, 'title' => 'Login page']);
+    TaskCompletion::factory()->create([
+        'task_id' => $t1->id, 'completed_by_user_id' => $user->id,
+        'summary_what' => 'reworked the auth flow', 'source' => 'claude', 'created_at' => now(),
+    ]);
+    $t2 = Task::factory()->create(['project_id' => $project->id, 'title' => 'Dashboard grid']);
+    TaskCompletion::factory()->create([
+        'task_id' => $t2->id, 'completed_by_user_id' => $user->id,
+        'summary_what' => 'fixed widget resize', 'source' => 'human', 'created_at' => now(),
+    ]);
+
+    // match on summary_what
+    $bySummary = $this->getJson("/api/v1/projects/{$project->id}/changelog?search=auth")
+        ->assertStatus(200)->json('data');
+    expect($bySummary)->toHaveCount(1)
+        ->and($bySummary[0]['summary_what'])->toBe('reworked the auth flow');
+
+    // match on task title
+    $byTitle = $this->getJson("/api/v1/projects/{$project->id}/changelog?search=Dashboard")
+        ->assertStatus(200)->json('data');
+    expect($byTitle)->toHaveCount(1)
+        ->and($byTitle[0]['task']['title'])->toBe('Dashboard grid');
+
+    // no match
+    expect($this->getJson("/api/v1/projects/{$project->id}/changelog?search=zzzznope")->json('data'))
+        ->toHaveCount(0);
+});

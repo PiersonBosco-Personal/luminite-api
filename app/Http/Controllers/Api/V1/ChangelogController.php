@@ -14,13 +14,20 @@ class ChangelogController extends Controller
     /** On a first-ever view (null anchor), show completions by others from this many days back. */
     private const FIRST_VIEW_WINDOW_DAYS = 14;
 
-    /** Latest-canonical completion per task, newest first (both members). */
+    /** Latest-canonical completion per task, newest first; optional ?search= over summary + task title. */
     public function index(Request $request, Project $project)
     {
-        $completions = $this->latestPerTask($project)
-            ->with('task', 'completedBy')
-            ->orderByDesc('created_at')
-            ->paginate(20);
+        $query = $this->latestPerTask($project)->with('task', 'completedBy');
+
+        if ($search = trim((string) $request->query('search', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('summary_what', 'like', "%{$search}%")
+                  ->orWhere('summary_why', 'like', "%{$search}%")
+                  ->orWhereHas('task', fn ($t) => $t->where('title', 'like', "%{$search}%"));
+            });
+        }
+
+        $completions = $query->orderByDesc('created_at')->paginate(20);
 
         return TaskCompletionResource::collection($completions);
     }
