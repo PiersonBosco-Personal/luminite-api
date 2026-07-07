@@ -1,101 +1,101 @@
 services:
     laravel.test:
         build:
-            context: './vendor/laravel/sail/runtimes/8.5'
+            context: "./vendor/laravel/sail/runtimes/8.5"
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
-        image: 'sail-8.5/app'
+                WWWGROUP: "${WWWGROUP}"
+        image: "sail-8.5/app"
         extra_hosts:
-            - 'host.docker.internal:host-gateway'
+            - "host.docker.internal:host-gateway"
         ports:
-            - '${APP_PORT:-80}:80'
-#            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
+            - "${APP_PORT:-80}:80"
+        #            - '${VITE_PORT:-5173}:${VITE_PORT:-5173}'
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
-            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
-            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
-            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+            XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
+            XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+            IGNITION_LOCAL_SITES_PATH: "${PWD}"
             REVERB_HOST: reverb # inside Docker, Reverb is reachable via its service name, not localhost
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            mysql:
+            pgsql:
                 condition: service_healthy
     reverb:
         build:
-            context: './vendor/laravel/sail/runtimes/8.5'
+            context: "./vendor/laravel/sail/runtimes/8.5"
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
-        image: 'sail-8.5/app'
+                WWWGROUP: "${WWWGROUP}"
+        image: "sail-8.5/app"
         extra_hosts:
-            - 'host.docker.internal:host-gateway'
+            - "host.docker.internal:host-gateway"
         command: php artisan reverb:start --host=0.0.0.0 --port=${REVERB_PORT:-8080}
         ports:
-            - '${REVERB_PORT:-8080}:${REVERB_PORT:-8080}'
+            - "${REVERB_PORT:-8080}:${REVERB_PORT:-8080}"
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            mysql:
-                condition: service_healthy # Reverb crashes at boot if MySQL isn't ready yet
+            pgsql:
+                condition: service_healthy # Reverb crashes at boot if PostgreSQL isn't ready yet
     queue:
         build:
-            context: './vendor/laravel/sail/runtimes/8.5'
+            context: "./vendor/laravel/sail/runtimes/8.5"
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
-        image: 'sail-8.5/app'
+                WWWGROUP: "${WWWGROUP}"
+        image: "sail-8.5/app"
         extra_hosts:
-            - 'host.docker.internal:host-gateway'
+            - "host.docker.internal:host-gateway"
         command: php artisan queue:listen --tries=3 --timeout=90
         environment:
-            WWWUSER: '${WWWUSER}'
+            WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
             REVERB_HOST: reverb # inside Docker, Reverb is reachable via its service name, not localhost
         volumes:
-            - '.:/var/www/html'
+            - ".:/var/www/html"
         networks:
             - sail
         depends_on:
-            mysql:
+            pgsql:
                 condition: service_healthy
-    mysql:
-        image: 'mysql:8.4'
+    pgsql:
+        image: "pgvector/pgvector:pg16"
         ports:
-            - '${FORWARD_DB_PORT:-3306}:3306'
+            - "${FORWARD_DB_PORT:-5432}:5432"
         environment:
-            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ROOT_HOST: '%'
-            MYSQL_DATABASE: '${DB_DATABASE}'
-            MYSQL_USER: '${DB_USERNAME}'
-            MYSQL_PASSWORD: '${DB_PASSWORD}'
-            MYSQL_ALLOW_EMPTY_PASSWORD: 1
-            MYSQL_EXTRA_OPTIONS: '${MYSQL_EXTRA_OPTIONS:-}'
+            PGPASSWORD: "${DB_PASSWORD:-secret}"
+            POSTGRES_DB: "${DB_DATABASE}"
+            POSTGRES_USER: "${DB_USERNAME}"
+            POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
         volumes:
-            - 'sail-mysql:/var/lib/mysql'
-            - './vendor/laravel/sail/database/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh'
+            - "sail-pgsql:/var/lib/postgresql/data"
+            - "./vendor/laravel/sail/database/pgsql/create-testing-database.sql:/docker-entrypoint-initdb.d/10-create-testing-database.sql"
         networks:
             - sail
         healthcheck:
             test:
                 - CMD
-                - mysqladmin
-                - ping
-                - '-p${DB_PASSWORD}'
+                - pg_isready
+                - "-q"
+                - "-d"
+                - "${DB_DATABASE}"
+                - "-U"
+                - "${DB_USERNAME}"
             retries: 3
             timeout: 5s
 networks:
     sail:
         driver: bridge
 volumes:
-    sail-mysql:
+    sail-pgsql:
         driver: local
