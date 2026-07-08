@@ -23,19 +23,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ['middleware' => ['auth:sanctum']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // statefulApi() removed — token auth only, no cookie/session on API routes
         $middleware->alias([
             'project.member' => \App\Http\Middleware\EnsureProjectMember::class,
             'mcp.auth'       => \App\Http\Middleware\ValidateMcpToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Enrich every reported exception with request context + a correlation
-        // id. Uncaught 500s are reported (logged) by Laravel automatically; this
-        // just makes each log line answer "who, where, and which request". The
-        // id is stamped on the request so render() can hand the same value back
-        // to the client. Ignored exceptions (validation, 404, auth) aren't
-        // reported, so this only fires for genuine server errors.
+        // Server error logging
         $exceptions->context(function (): array {
             $request = request();
             $errorId = $request->attributes->get('error_id');
@@ -52,14 +46,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 'url'      => $request->fullUrl(),
                 'route'    => optional($request->route())->getName(),
                 'ip'       => $request->ip(),
-            ], fn ($value) => $value !== null);
+            ], fn($value) => $value !== null);
         });
 
-        // For unhandled server errors on API/JSON requests, return the app's
-        // {data, message, errors} envelope with the correlation id — never the
-        // exception itself (safe regardless of APP_DEBUG). Exceptions that
-        // already map to a meaningful HTTP status (422 validation, 404 model,
-        // 401/403 auth, abort_*()) keep Laravel's normal response.
+        // For unhandled server errors 
         $exceptions->render(function (\Throwable $e, Request $request) {
             $handledByFramework = $e instanceof HttpExceptionInterface
                 || $e instanceof ValidationException
