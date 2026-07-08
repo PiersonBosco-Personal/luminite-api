@@ -1,10 +1,17 @@
 <?php
 
-use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
+use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+
+it('queues the reset notification instead of sending SMTP synchronously', function () {
+    // Guards against a regression where an SMTP outage would throw an
+    // unhandled 500 on the forgot-password request instead of retrying async.
+    expect(new ResetPasswordNotification('tok'))->toBeInstanceOf(ShouldQueue::class);
+});
 
 it('sends a reset notification to a known email', function () {
     Notification::fake();
