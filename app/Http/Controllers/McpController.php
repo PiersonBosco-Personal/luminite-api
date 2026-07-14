@@ -15,6 +15,7 @@ use App\Mcp\Tools\GetProjectNotes;
 use App\Mcp\Tools\GetRecentActivity;
 use App\Mcp\Tools\GetSections;
 use App\Mcp\Tools\GetSessionContext;
+use App\Mcp\Tools\GetThread;
 use App\Mcp\Tools\InitializeProject;
 use App\Mcp\Tools\LogSessionActivity;
 use App\Mcp\Tools\ManageLabel;
@@ -34,6 +35,7 @@ class McpController extends Controller
             new GetOpenTasks,
             new GetProjectNotes,
             new GetRecentActivity,
+            new GetThread,
             new GetLabels,
             new GetSections,
             new ManageSection,
