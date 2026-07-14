@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -107,27 +108,55 @@ class AttachmentController extends Controller
         $file         = $request->file('file');
         $uuid         = Str::uuid()->toString();
         $originalName = $file->getClientOriginalName();
-        $storagePath  = "attachments/{$projectId}/{$uuid}/{$originalName}";
+        $mimeType     = $file->getMimeType() ?? 'application/octet-stream';
+        $size         = $file->getSize();
+        $directory    = "attachments/{$projectId}/{$uuid}";
+        $storagePath  = "{$directory}/{$originalName}";
 
-        Storage::disk('local')->putFileAs(
-            "attachments/{$projectId}/{$uuid}",
-            $file,
-            $originalName
-        );
+        // Write the file first. putFileAs returns false on a disk error (full
+        // disk, permissions); a lower-level driver fault throws. Treat both as a
+        // clean 500 rather than letting the request half-fail with a leaked path.
+        try {
+            $stored = Storage::disk('local')->putFileAs($directory, $file, $originalName);
+        } catch (\Throwable $e) {
+            report($e);
+            $stored = false;
+        }
 
-        $attachment = $attachable->attachments()->create([
-            'uploaded_by'   => $request->user()->id,
-            'folder_id'     => $folderId,
-            'filename'      => $originalName,
-            'original_name' => $originalName,
-            'mime_type'     => $file->getMimeType() ?? 'application/octet-stream',
-            'path'          => $storagePath,
-            'disk'          => 'local',
-            'size'          => $file->getSize(),
-            'url'           => '',
-        ]);
+        if ($stored === false) {
+            return response()->json([
+                'data'    => null,
+                'message' => 'The file could not be saved. Please try again.',
+                'errors'  => (object) [],
+            ], 500);
+        }
 
-        $attachment->update(['url' => "/v1/attachments/{$attachment->id}"]);
+        // Record the attachment. If the insert fails, delete the file we just
+        // wrote so a failed request never leaves an orphan on disk.
+        try {
+            $attachment = DB::transaction(function () use (
+                $attachable, $request, $folderId, $originalName, $mimeType, $storagePath, $size
+            ) {
+                $attachment = $attachable->attachments()->create([
+                    'uploaded_by'   => $request->user()->id,
+                    'folder_id'     => $folderId,
+                    'filename'      => $originalName,
+                    'original_name' => $originalName,
+                    'mime_type'     => $mimeType,
+                    'path'          => $storagePath,
+                    'disk'          => 'local',
+                    'size'          => $size,
+                    'url'           => '',
+                ]);
+
+                $attachment->update(['url' => "/v1/attachments/{$attachment->id}"]);
+
+                return $attachment;
+            });
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($storagePath);
+            throw $e; // reported + enveloped by the global handler with a correlation id
+        }
 
         $attachment->load('uploader');
 

@@ -3,6 +3,7 @@
 use App\Models\AttachmentFolder;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
@@ -42,6 +43,41 @@ it('member can upload a file to a project', function () {
              ->assertJsonPath('data.original_name', 'report.pdf');
 
     Storage::disk('local')->assertExists($response->json('data.path'));
+});
+
+it('returns a clean 500 and records nothing when the file cannot be written', function () {
+    ['project' => $project] = attachmentTestSetup('member');
+
+    // Force the disk write to report failure (full disk / permissions).
+    $disk = Mockery::mock(\Illuminate\Contracts\Filesystem\Filesystem::class);
+    $disk->shouldReceive('putFileAs')->once()->andReturn(false);
+    Storage::shouldReceive('disk')->with('local')->andReturn($disk);
+
+    $file = UploadedFile::fake()->create('report.pdf', 100);
+
+    $this->postJson("/api/v1/projects/{$project->id}/attachments", ['file' => $file])
+         ->assertStatus(500)
+         ->assertJsonPath('data', null)
+         ->assertJsonFragment(['message' => 'The file could not be saved. Please try again.']);
+
+    expect(\App\Models\Attachment::count())->toBe(0);
+});
+
+it('deletes the orphaned file when the database insert fails', function () {
+    ['project' => $project] = attachmentTestSetup('member');
+
+    // File write succeeds on the fake disk, but the DB step blows up. Eloquent
+    // uses its own connection resolver, so mocking the DB facade only diverts
+    // the controller's explicit DB::transaction() call.
+    DB::shouldReceive('transaction')->once()->andThrow(new RuntimeException('db down'));
+
+    $file = UploadedFile::fake()->create('report.pdf', 100);
+
+    $this->postJson("/api/v1/projects/{$project->id}/attachments", ['file' => $file])
+         ->assertStatus(500);
+
+    expect(\App\Models\Attachment::count())->toBe(0);
+    Storage::disk('local')->assertDirectoryEmpty("attachments/{$project->id}");
 });
 
 it('outsider cannot upload to a project', function () {

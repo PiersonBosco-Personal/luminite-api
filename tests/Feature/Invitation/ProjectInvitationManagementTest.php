@@ -62,7 +62,7 @@ it('owner can resend an invitation, re-sending the email and resetting status', 
         ->assertStatus(200)
         ->assertJsonFragment(['status' => 'pending']);
 
-    Mail::assertSent(\App\Mail\ProjectInvitationMail::class);
+    Mail::assertQueued(\App\Mail\ProjectInvitationMail::class);
     expect($invite->fresh()->declined_at)->toBeNull();
     expect($invite->fresh()->expires_at->isFuture())->toBeTrue();
 });

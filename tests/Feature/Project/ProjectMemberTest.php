@@ -41,7 +41,7 @@ it('owner inviting an existing user creates an invitation and does NOT auto-add'
     expect(\App\Models\ProjectInvitation::where('email', $newUser->email)
         ->where('project_id', $project->id)->exists())->toBeTrue();
 
-    Mail::assertSent(\App\Mail\ProjectInvitationMail::class);
+    Mail::assertQueued(\App\Mail\ProjectInvitationMail::class);
 });
 
 it('broadcasts InvitationCreated to an existing invited user', function () {
@@ -87,7 +87,7 @@ it('sends an invitation when email does not belong to an existing user', functio
         'email' => 'newperson@example.com',
     ])->assertStatus(202)->assertJsonFragment(['message' => 'Invitation sent.']);
 
-    Mail::assertSent(\App\Mail\ProjectInvitationMail::class);
+    Mail::assertQueued(\App\Mail\ProjectInvitationMail::class);
     expect(\App\Models\ProjectInvitation::where('email', 'newperson@example.com')->exists())->toBeTrue();
 });
 
@@ -101,7 +101,7 @@ it('is idempotent when a pending invitation already exists for that email', func
     $this->postJson("/api/v1/projects/{$project->id}/members", ['email' => 'newperson@example.com'])
         ->assertStatus(202)->assertJsonFragment(['message' => 'Invitation already sent.']);
 
-    Mail::assertSentCount(1);
+    Mail::assertQueuedCount(1);
     expect(\App\Models\ProjectInvitation::where('email', 'newperson@example.com')->count())->toBe(1);
 });
 
