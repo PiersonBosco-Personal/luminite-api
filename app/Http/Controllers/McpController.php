@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mcp\McpServer;
 use App\Mcp\Prompts\InitializeProjectPrompt;
 use App\Mcp\Prompts\WrapUpPrompt;
+use App\Mcp\Tools\AddThreadEntry;
 use App\Mcp\Tools\CompleteTask;
 use App\Mcp\Tools\CreateNote;
 use App\Mcp\Tools\CreateTask;
@@ -28,6 +29,7 @@ class McpController extends Controller
     {
         $payload = $request->json()->all();
         $server = new McpServer([
+            new AddThreadEntry,
             new GetSessionContext,
             new GetOpenTasks,
             new GetProjectNotes,
