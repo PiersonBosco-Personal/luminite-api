@@ -50,6 +50,16 @@ it('get_thread filters by type', function () {
     expect($text)->toContain('D')->not->toContain('G');
 });
 
+it('get_thread does not return unbounded results for a negative limit', function () {
+    [$raw, , $project] = mcpToken([], ['read']);
+    ThreadEntry::factory()->count(5)->create(['project_id' => $project->id]);
+
+    // A negative limit must NOT bypass the cap (Laravel drops LIMIT on negative);
+    // the guard clamps it to 1.
+    $text = getThreadCall($this, $raw, ['limit' => -1]);
+    expect(substr_count($text, "\n- "))->toBe(1);
+});
+
 it('get_thread only returns the calling project\'s entries', function () {
     [$raw, , $project] = mcpToken([], ['read']);
     ThreadEntry::factory()->create(['project_id' => $project->id, 'content' => 'mine']);

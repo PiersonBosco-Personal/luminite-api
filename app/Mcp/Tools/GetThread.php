@@ -30,7 +30,9 @@ class GetThread extends Tool
     public function run(array $args, Request $request): string
     {
         $projectId = $this->projectId($request);
-        $limit = min((int) ($args['limit'] ?? self::DEFAULT_LIMIT), self::MAX_LIMIT);
+        // max(1, ...) guards against a negative limit, which Laravel would otherwise
+        // drop the LIMIT clause for entirely — bypassing the hard cap.
+        $limit = max(1, min((int) ($args['limit'] ?? self::DEFAULT_LIMIT), self::MAX_LIMIT));
 
         $query = ThreadEntry::where('project_id', $projectId)
             ->orderBy('created_at', 'desc')
