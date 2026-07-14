@@ -7,12 +7,14 @@ use App\Models\Label;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskSection;
+use App\Models\ThreadEntry;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class GetSessionContext extends Tool
 {
     private const MAX_OPEN_TASKS = 25;
+    private const MAX_THREAD_ENTRIES = 12;
 
     public function definition(): array
     {
@@ -154,6 +156,32 @@ class GetSessionContext extends Tool
             foreach ($entries as $entry) {
                 $viaMcp  = $entry->via_mcp ? ' [via MCP]' : '';
                 $lines[] = "{$entry->created_at->toDateTimeString()} — {$entry->description}{$viaMcp}";
+            }
+        }
+
+        // Project memory (the Thread) — recent entries, decisions surfaced first.
+        $threadTotal = ThreadEntry::where('project_id', $projectId)->count();
+
+        $lines[] = '';
+        if ($threadTotal === 0) {
+            $lines[] = 'Project Memory: none yet';
+        } else {
+            $rank = ['decision' => 0, 'momentum' => 1];
+            $threadEntries = ThreadEntry::where('project_id', $projectId)
+                ->orderBy('created_at', 'desc')
+                ->limit(self::MAX_THREAD_ENTRIES)
+                ->get()
+                ->sortBy(fn (ThreadEntry $e) => $rank[$e->type] ?? 2) // stable: recency preserved within a rank
+                ->values();
+
+            $lines[] = 'Project Memory (recent — decisions first):';
+            foreach ($threadEntries as $entry) {
+                $lines[] = "- [{$entry->type}] {$entry->content} — {$entry->created_at->diffForHumans()}";
+            }
+
+            $overflow = $threadTotal - self::MAX_THREAD_ENTRIES;
+            if ($overflow > 0) {
+                $lines[] = "… +{$overflow} more (use get_thread to see more)";
             }
         }
 

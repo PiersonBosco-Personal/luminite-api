@@ -5,6 +5,7 @@ use App\Models\Label;
 use App\Models\Task;
 use App\Models\TaskSection;
 use App\Models\TechStack;
+use App\Models\ThreadEntry;
 
 it('get_session_context returns project info', function () {
     [$raw] = mcpToken([
@@ -142,4 +143,49 @@ it('get_session_context lists sections and labels with ids', function () {
         ->and($text)->toContain('Labels:')
         ->and($text)->toContain('bug')
         ->and($text)->toContain('#ef4444');
+});
+
+function sessionContextText($test, string $raw): string
+{
+    return $test->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 1,
+            'params'  => ['name' => 'get_session_context', 'arguments' => []],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+}
+
+it('session context shows the project memory block when entries exist', function () {
+    [$raw, , $project] = mcpToken([], ['read']);
+    ThreadEntry::factory()->create(['project_id' => $project->id, 'type' => 'gotcha', 'content' => 'Watch the coupling.']);
+
+    expect(sessionContextText($this, $raw))
+        ->toContain('Project Memory')
+        ->toContain('Watch the coupling.');
+});
+
+it('session context surfaces decisions before other entries', function () {
+    [$raw, , $project] = mcpToken([], ['read']);
+    // momentum is NEWER, decision is OLDER — decision must still render first.
+    ThreadEntry::factory()->create(['project_id' => $project->id, 'type' => 'decision', 'content' => 'DECIDED', 'created_at' => now()->subHour()]);
+    ThreadEntry::factory()->create(['project_id' => $project->id, 'type' => 'momentum', 'content' => 'MOMENTUM', 'created_at' => now()]);
+
+    $text = sessionContextText($this, $raw);
+    expect(strpos($text, 'DECIDED'))->toBeLessThan(strpos($text, 'MOMENTUM'));
+});
+
+it('session context omits the memory block gracefully when empty', function () {
+    [$raw] = mcpToken([], ['read']);
+    expect(sessionContextText($this, $raw))->toContain('Project Memory: none yet');
+});
+
+it('session context caps the memory block and shows an overflow footer', function () {
+    [$raw, , $project] = mcpToken([], ['read']);
+    ThreadEntry::factory()->count(15)->create(['project_id' => $project->id, 'type' => 'momentum']);
+
+    $text = sessionContextText($this, $raw);
+    expect($text)->toContain('… +3 more'); // 15 total, cap 12
 });
