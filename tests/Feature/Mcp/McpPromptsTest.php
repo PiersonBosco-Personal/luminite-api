@@ -72,6 +72,22 @@ it('lists and returns the wrap-up prompt', function () {
         ->assertJsonPath('result.messages.0.content.text', fn ($t) => str_contains($t, 'log_session_activity'));
 });
 
+it('wrap-up prompt captures memory via add_thread_entry, not create_note', function () {
+    [$raw] = mcpToken();
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'prompts/get', 'id' => 7,
+            'params'  => ['name' => 'wrap-up'],
+        ])
+        ->assertStatus(200)
+        ->json('result.messages.0.content.text');
+
+    expect($text)
+        ->toContain('add_thread_entry')
+        ->not->toContain('create_note');
+});
+
 it('prompt methods write nothing to mcp_history', function () {
     [$raw] = mcpToken();
 
