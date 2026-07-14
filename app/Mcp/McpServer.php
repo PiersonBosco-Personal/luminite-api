@@ -69,7 +69,7 @@ class McpServer
             'This project is tracked in Luminite. Keep it in sync as you work, without being asked:',
             '- Starting a task → update_task to move it to In Progress.',
             '- Finishing a task → complete_task.',
-            '- Notable decision (architecture, tradeoff, scope change) → create_note linked with task_id.',
+            '- Notable decision, dead-end ruled out, or where you left off → add_thread_entry (typed: decision/dead_end/gotcha/momentum).',
             'If you are missing project state, call get_session_context first.',
             '',
             'When you mention any Luminite item (task, note, section, label, project) to the user, refer to it by its name or title — never by its numeric id. IDs are internal handles for your tool calls only and are meaningless to the user. If two items share a name, distinguish them with a human detail (priority, label, assignee, or which section they are in); if still ambiguous, ask. Never show or read out an id.',
