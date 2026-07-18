@@ -24,6 +24,7 @@ class AddThreadEntry extends Tool
                     'type'    => ['type' => 'string', 'enum' => ThreadEntry::TYPES],
                     'content' => ['type' => 'string', 'description' => 'The entry body — the why/what, plain text.'],
                     'task_id' => ['type' => 'integer', 'description' => 'Optional task this entry relates to.'],
+                    'trigger' => ['type' => 'string', 'enum' => ThreadEntry::TRIGGERS, 'description' => 'Usually omitted (defaults to manual). The git-commit heartbeat sets this to "commit".'],
                 ],
                 'required' => ['type', 'content'],
             ],
@@ -46,6 +47,15 @@ class AddThreadEntry extends Tool
             return 'Error: content is required.';
         }
 
+        $trigger = (string) ($args['trigger'] ?? 'manual');
+        if ($trigger === '') {
+            $trigger = 'manual';
+        }
+        if (! in_array($trigger, ThreadEntry::TRIGGERS, true)) {
+            $allowed = implode(', ', ThreadEntry::TRIGGERS);
+            return "Error: trigger must be one of: {$allowed}.";
+        }
+
         $taskId = null;
         if (isset($args['task_id']) && $args['task_id'] !== '') {
             $taskId = (int) $args['task_id'];
@@ -60,7 +70,7 @@ class AddThreadEntry extends Tool
             'created_by' => $userId,
             'type'       => $type,
             'content'    => $content,
-            'trigger'    => 'manual',
+            'trigger'    => $trigger,
         ]);
 
         // Deliberately no ActivityLogService::log() and no broadcast (spec §3):

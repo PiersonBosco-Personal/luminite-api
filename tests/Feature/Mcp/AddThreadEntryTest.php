@@ -103,3 +103,28 @@ it('add_thread_entry requires the write scope', function () {
     expect($error)->toContain('write')
         ->and(ThreadEntry::where('project_id', $project->id)->count())->toBe(0);
 });
+
+it('add_thread_entry stores an explicit commit trigger', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+
+    addThreadEntryCall($this, $raw, [
+        'type'    => 'momentum',
+        'content' => 'feat(api): add task reordering endpoint',
+        'trigger' => 'commit',
+    ]);
+
+    expect(ThreadEntry::where('project_id', $project->id)->first()->trigger)->toBe('commit');
+});
+
+it('add_thread_entry rejects an unknown trigger without writing a row', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+
+    $text = addThreadEntryCall($this, $raw, [
+        'type'    => 'momentum',
+        'content' => 'x',
+        'trigger' => 'banana',
+    ]);
+
+    expect($text)->toContain('Error')
+        ->and(ThreadEntry::where('project_id', $project->id)->count())->toBe(0);
+});
