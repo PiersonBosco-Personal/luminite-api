@@ -26,7 +26,7 @@ class TestingSeeder extends Seeder
 
         $goals =
             <<<EOT
-                Luminite is a downloadable desktop application for small web development teams that unifies project management into a single, purpose-built tool. The product vision combines the best elements of Trello (kanban task management), Obsidian (rich, interconnected notetaking), and Notion (customizable dashboards) — but built specifically for the workflows and mental models of developers.
+                Luminite is a downloadable Progressive Web App (PWA) for small web development teams that unifies project management into a single, purpose-built tool. The product vision combines the best elements of Trello (kanban task management), Obsidian (rich, interconnected notetaking), and Notion (customizable dashboards) — but built specifically for the workflows and mental models of developers.
 
                 Core product goals:
 
@@ -38,7 +38,7 @@ class TestingSeeder extends Seeder
 
                 4. Real-time collaboration — Small teams see each other's presence, task updates, and note edits in real time via WebSockets (Laravel Reverb). No page refreshes, no stale state.
 
-                5. Desktop-first distribution — Luminite ships as a downloadable PWA app. Users download it once; it connects to infrastructure we own and operate. Users never run a database or backend themselves. This gives us full control over the stack while keeping the install experience simple.
+                5. PWA distribution — Luminite ships as an installable Progressive Web App. Users install it once from the browser; it connects to infrastructure we own and operate. Users never run a database or backend themselves. This gives us full control over the stack while keeping the install experience simple.
 
                 6. Developer-specific features — Tech stack registry (version-tracked), architecture notes per project, attachment storage with folder trees, rich text notes with task linking, and a customizable widget dashboard that surfaces the information most relevant to each team member.
             EOT;
@@ -59,19 +59,19 @@ class TestingSeeder extends Seeder
 
                 ## Locked Architectural Decisions
 
-                **Auth:** Laravel Sanctum, token-based. No sessions, no cookies. Tokens are stored in localStorage during browser development. When Electron is added, all token storage swaps to window.electronAPI.safeStorage via a single change in customAxios.ts. This is by design — a one-file migration path.
+                **Auth:** Laravel Sanctum, token-based. No sessions, no cookies. Permanent tokens (expiration = null) are stored in localStorage. Changing a password invalidates a user's existing tokens.
 
                 **API versioning:** All routes are prefixed /api/v1/. A clean v2 migration path is preserved from day one.
 
                 **No Inertia.js:** Never. Laravel is a pure API. React is a pure SPA. They are independently deployable and independently testable.
 
-                **No SSR:** Every frontend decision must be compatible with Electron's renderer process. No server-dependent rendering, ever.
+                **No SSR:** Luminite is a pure client-side SPA delivered as a PWA. No server-dependent rendering, ever.
 
                 **Real-time:** Laravel Reverb (WebSockets, Pusher-compatible protocol). Pusher is a documented swap but not the default. Laravel Echo on the frontend.
 
                 **AI provider abstraction:** All AI calls go through a single AIProvider interface (app/AI/Contracts/AIProvider.php). Concrete implementations exist for OpenAI (GPT-4o), Anthropic (Claude), and Ollama (local). The active provider is a one-line config change. Never call any AI SDK directly from controllers.
 
-                **Database split:** MySQL is the primary database for all relational data. PostgreSQL + pgvector is added only for AI vector embeddings and runs as a separate connection. Do not conflate the two.
+                **Database:** PostgreSQL 16 is the single primary database for all relational data. The pgvector extension runs inside that same database for AI vector embeddings — there is no separate database or connection for vectors.
 
                 **Queue/Jobs:** Laravel Queues backed by Redis. Used for AI processing jobs and async tasks like file deletion. Never run AI inference synchronously in a request.
 
@@ -100,7 +100,7 @@ class TestingSeeder extends Seeder
         $luminite = Project::create([
             'owner_id'           => $owner->id,
             'name'               => 'Luminite',
-            'description'        => 'Luminite is a downloadable desktop application for small web development teams. It is a monorepo project combining a Laravel REST API (luminite-api), a React + TypeScript frontend (luminite-web-app), and a planned PWA download through a frontend webstie. The platform unifies kanban task management, rich notetaking, customizable dashboards, real-time collaboration, and AI-powered project assistance into a single tool built specifically for developer workflows.',
+            'description'        => 'Luminite is a downloadable Progressive Web App (PWA) for small web development teams. It combines a Laravel 11 REST API (luminite-api) and a React + TypeScript frontend (luminite-web-app), installed once from the browser and connected to infrastructure we own and operate. The platform unifies kanban task management, rich notetaking, customizable dashboards, real-time collaboration, and AI-powered project assistance into a single tool built specifically for developer workflows.',
             'status'             => 'active',
             'goals'              => $goals,
             'architecture_notes' => $architectureNotes,
@@ -111,7 +111,6 @@ class TestingSeeder extends Seeder
         TechStack::insert([
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Laravel',        'version' => '11',    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'PHP',             'version' => '8.3',   'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'MySQL',           'version' => '8.0',   'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'PostgreSQL',      'version' => '16',    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'pgvector',        'version' => null,    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Laravel Reverb',  'version' => null,    'created_at' => now(), 'updated_at' => now()],
@@ -123,7 +122,6 @@ class TestingSeeder extends Seeder
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Vite',            'version' => null,    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Tailwind CSS',    'version' => '4.0',   'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Shadcn/ui',       'version' => null,    'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Electron',        'version' => null,    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'DigitalOcean',    'version' => null,    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'Laravel Forge',   'version' => null,    'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $luminite->id, 'parent_id' => null, 'name' => 'GitHub Actions',  'version' => null,    'created_at' => now(), 'updated_at' => now()],
@@ -136,7 +134,6 @@ class TestingSeeder extends Seeder
         $frontendLabel = Label::create(['project_id' => $luminite->id, 'name' => 'Frontend',    'color' => '#3b82f6']);
         $aiLabel       = Label::create(['project_id' => $luminite->id, 'name' => 'AI',          'color' => '#8b5cf6']);
         $mcpLabel      = Label::create(['project_id' => $luminite->id, 'name' => 'MCP',         'color' => '#f59e0b']);
-        $electronLabel = Label::create(['project_id' => $luminite->id, 'name' => 'Electron',    'color' => '#64748b']);
         $infraLabel    = Label::create(['project_id' => $luminite->id, 'name' => 'Infra',       'color' => '#06b6d4']);
 
         TaskSection::insert([

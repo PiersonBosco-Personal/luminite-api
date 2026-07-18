@@ -39,7 +39,8 @@ class ProjectSeeder extends Seeder
             ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'TypeScript',  'version' => '5.x',  'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'Tailwind CSS','version' => '4.0',  'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'Laravel',     'version' => '11',   'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'MySQL',       'version' => '8.0',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'PostgreSQL',  'version' => '16',   'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $webApp->id, 'parent_id' => null, 'name' => 'pgvector',    'version' => null,   'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $bugLabel       = Label::create(['project_id' => $webApp->id, 'name' => 'Bug',         'color' => '#ef4444']);
@@ -150,7 +151,8 @@ class ProjectSeeder extends Seeder
 
         TechStack::insert([
             ['project_id' => $api->id, 'parent_id' => null, 'name' => 'Laravel 11', 'version' => '11',  'created_at' => now(), 'updated_at' => now()],
-            ['project_id' => $api->id, 'parent_id' => null, 'name' => 'MySQL',      'version' => '8.0', 'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $api->id, 'parent_id' => null, 'name' => 'PostgreSQL', 'version' => '16',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $api->id, 'parent_id' => null, 'name' => 'pgvector',   'version' => null,  'created_at' => now(), 'updated_at' => now()],
             ['project_id' => $api->id, 'parent_id' => null, 'name' => 'Redis',      'version' => null,  'created_at' => now(), 'updated_at' => now()],
         ]);
 
