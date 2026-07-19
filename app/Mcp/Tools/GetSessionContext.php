@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\Models\ActivityLog;
+use App\Models\Decision;
 use App\Models\Label;
 use App\Models\Project;
 use App\Models\Task;
@@ -15,6 +16,7 @@ class GetSessionContext extends Tool
 {
     private const MAX_OPEN_TASKS = 25;
     private const MAX_THREAD_ENTRIES = 12;
+    private const MAX_ACTIVE_DECISIONS = 15;
 
     public function definition(): array
     {
@@ -159,22 +161,36 @@ class GetSessionContext extends Tool
             }
         }
 
-        // Project memory (the Thread) — recent entries, decisions surfaced first.
+        // Active decisions — the durable, settled truth (structured query, not the stream).
+        $activeDecisions = Decision::where('project_id', $projectId)
+            ->where('status', 'active')
+            ->orderBy('created_at', 'desc')
+            ->limit(self::MAX_ACTIVE_DECISIONS)
+            ->get();
+
+        $lines[] = '';
+        if ($activeDecisions->isEmpty()) {
+            $lines[] = 'Active Decisions: none yet';
+        } else {
+            $lines[] = 'Active Decisions (current truth):';
+            foreach ($activeDecisions as $decision) {
+                $lines[] = "- {$decision->decision} — {$decision->rationale}";
+            }
+        }
+
+        // Project memory (the Thread) — recent entries.
         $threadTotal = ThreadEntry::where('project_id', $projectId)->count();
 
         $lines[] = '';
         if ($threadTotal === 0) {
             $lines[] = 'Project Memory: none yet';
         } else {
-            $rank = ['decision' => 0, 'momentum' => 1];
             $threadEntries = ThreadEntry::where('project_id', $projectId)
                 ->orderBy('created_at', 'desc')
                 ->limit(self::MAX_THREAD_ENTRIES)
-                ->get()
-                ->sortBy(fn (ThreadEntry $e) => $rank[$e->type] ?? 2) // stable: recency preserved within a rank
-                ->values();
+                ->get();
 
-            $lines[] = 'Project Memory (recent — decisions first):';
+            $lines[] = 'Project Memory (recent):';
             foreach ($threadEntries as $entry) {
                 $lines[] = "- [{$entry->type}] {$entry->content} — {$entry->created_at->diffForHumans()}";
             }

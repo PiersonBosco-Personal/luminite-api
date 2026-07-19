@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\Decision;
 use App\Models\Label;
 use App\Models\Task;
 use App\Models\TaskSection;
@@ -167,16 +168,6 @@ it('session context shows the project memory block when entries exist', function
         ->toContain('Watch the coupling.');
 });
 
-it('session context surfaces decisions before other entries', function () {
-    [$raw, , $project] = mcpToken([], ['read']);
-    // momentum is NEWER, decision is OLDER — decision must still render first.
-    ThreadEntry::factory()->create(['project_id' => $project->id, 'type' => 'decision', 'content' => 'DECIDED', 'created_at' => now()->subHour()]);
-    ThreadEntry::factory()->create(['project_id' => $project->id, 'type' => 'momentum', 'content' => 'MOMENTUM', 'created_at' => now()]);
-
-    $text = sessionContextText($this, $raw);
-    expect(strpos($text, 'DECIDED'))->toBeLessThan(strpos($text, 'MOMENTUM'));
-});
-
 it('session context omits the memory block gracefully when empty', function () {
     [$raw] = mcpToken([], ['read']);
     expect(sessionContextText($this, $raw))->toContain('Project Memory: none yet');
@@ -188,4 +179,21 @@ it('session context caps the memory block and shows an overflow footer', functio
 
     $text = sessionContextText($this, $raw);
     expect($text)->toContain('… +3 more'); // 15 total, cap 12
+});
+
+it('injects active decisions and excludes superseded ones', function () {
+    [$raw, , $project] = mcpToken([], ['read']);
+    Decision::factory()->create(['project_id' => $project->id, 'decision' => 'Use Square', 'rationale' => 'Lower fees', 'status' => 'active']);
+    Decision::factory()->create(['project_id' => $project->id, 'decision' => 'Use Stripe', 'rationale' => 'Was default', 'status' => 'superseded']);
+
+    $text = sessionContextText($this, $raw);
+
+    expect($text)->toContain('Active Decisions')
+        ->and($text)->toContain('Use Square')
+        ->and($text)->not->toContain('Use Stripe');
+});
+
+it('shows the empty decisions state', function () {
+    [$raw] = mcpToken([], ['read']);
+    expect(sessionContextText($this, $raw))->toContain('Active Decisions: none yet');
 });
