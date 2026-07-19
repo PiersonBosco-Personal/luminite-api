@@ -9,6 +9,7 @@ use App\Mcp\Tools\AddThreadEntry;
 use App\Mcp\Tools\CompleteTask;
 use App\Mcp\Tools\CreateNote;
 use App\Mcp\Tools\CreateTask;
+use App\Mcp\Tools\GetDecisions;
 use App\Mcp\Tools\GetLabels;
 use App\Mcp\Tools\GetOpenTasks;
 use App\Mcp\Tools\GetProjectNotes;
@@ -38,6 +39,7 @@ class McpController extends Controller
             new GetProjectNotes,
             new GetRecentActivity,
             new GetThread,
+            new GetDecisions,
             new GetLabels,
             new GetSections,
             new ManageSection,
