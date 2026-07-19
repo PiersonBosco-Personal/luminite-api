@@ -17,7 +17,7 @@ class AddThreadEntry extends Tool
     {
         return [
             'name'        => 'add_thread_entry',
-            'description' => 'Append an entry to the project memory ("the Thread"). Call this the moment you make a decision, rule out a dead-end, hit a gotcha, or park work — capture WHY, not just what. This project-scoped memory is injected at the start of future sessions so you and your teammate resume instantly. type is one of: momentum (where you left off / the next move), decision, dead_end, gotcha. Optionally pass task_id to breadcrumb which task it came from. Requires a token with the write scope.',
+            'description' => 'Append an entry to the project memory ("the Thread"). Call this the moment you make a decision, rule out a dead-end, hit a gotcha, or park work — capture WHY, not just what. This project-scoped memory is injected at the start of future sessions so you and your teammate resume instantly. type is one of: momentum (where you left off / the next move), dead_end (an approach ruled out), gotcha (a sharp edge worth remembering). For a decision you have settled, use the log_decision tool instead — decisions are first-class, superseding rows, not stream entries. Optionally pass task_id to breadcrumb which task it came from. Requires a token with the write scope.',
             'inputSchema' => [
                 'type'       => 'object',
                 'properties' => [

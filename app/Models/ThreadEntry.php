@@ -10,8 +10,11 @@ class ThreadEntry extends Model
 {
     use HasFactory;
 
-    /** Allowed entry types (Phase 1). `decision` gains a lifecycle in Phase 3. */
-    public const TYPES = ['momentum', 'decision', 'dead_end', 'gotcha'];
+    /**
+     * Allowed entry types. Decisions are NOT here — they are first-class rows in
+     * the `decisions` table (Phase 3); record them with the log_decision tool.
+     */
+    public const TYPES = ['momentum', 'dead_end', 'gotcha'];
 
     /** Allowed capture triggers. `session_end` is reserved for a future distinct tag. */
     public const TRIGGERS = ['manual', 'commit', 'session_end'];

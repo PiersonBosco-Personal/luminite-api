@@ -8,19 +8,19 @@ use App\Models\ThreadEntry;
 
 it('persists a thread entry with all columns', function () {
     $entry = ThreadEntry::factory()->create([
-        'type'    => 'decision',
+        'type'    => 'gotcha',
         'content' => 'Chose project-scoped stream over task-scoped.',
         'trigger' => 'manual',
     ]);
 
     expect($entry->fresh())
-        ->type->toBe('decision')
+        ->type->toBe('gotcha')
         ->content->toBe('Chose project-scoped stream over task-scoped.')
         ->trigger->toBe('manual')
         ->and($entry->project_id)->not->toBeNull()
         ->and($entry->created_by)->not->toBeNull();
 
-    expect(ThreadEntry::TYPES)->toBe(['momentum', 'decision', 'dead_end', 'gotcha']);
+    expect(ThreadEntry::TYPES)->toBe(['momentum', 'dead_end', 'gotcha']);
 });
 
 function addThreadEntryCall($test, string $raw, array $arguments, int $id = 1): string
@@ -40,15 +40,15 @@ it('add_thread_entry appends an entry and writes NO activity log', function () {
     [$raw, , $project] = mcpToken([], ['read', 'write']);
 
     $text = addThreadEntryCall($this, $raw, [
-        'type'    => 'decision',
+        'type'    => 'gotcha',
         'content' => 'Switched payment processor to Square.',
     ]);
 
-    expect($text)->toContain('decision');
+    expect($text)->toContain('gotcha');
 
     $entry = ThreadEntry::where('project_id', $project->id)->first();
     expect($entry)->not->toBeNull()
-        ->and($entry->type)->toBe('decision')
+        ->and($entry->type)->toBe('gotcha')
         ->and($entry->trigger)->toBe('manual')
         ->and($entry->task_id)->toBeNull();
 
@@ -124,6 +124,15 @@ it('add_thread_entry rejects an unknown trigger without writing a row', function
         'content' => 'x',
         'trigger' => 'banana',
     ]);
+
+    expect($text)->toContain('Error')
+        ->and(ThreadEntry::where('project_id', $project->id)->count())->toBe(0);
+});
+
+it('add_thread_entry rejects the retired decision type (use log_decision now)', function () {
+    [$raw, , $project] = mcpToken([], ['read', 'write']);
+
+    $text = addThreadEntryCall($this, $raw, ['type' => 'decision', 'content' => 'we chose X']);
 
     expect($text)->toContain('Error')
         ->and(ThreadEntry::where('project_id', $project->id)->count())->toBe(0);

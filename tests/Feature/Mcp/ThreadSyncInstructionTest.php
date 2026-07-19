@@ -13,5 +13,6 @@ it('initialize instructions route decisions to add_thread_entry, not create_note
 
     expect($instructions)
         ->toContain('add_thread_entry')
+        ->toContain('log_decision')
         ->not->toContain('create_note');
 });
