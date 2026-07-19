@@ -17,6 +17,7 @@ use App\Mcp\Tools\GetSections;
 use App\Mcp\Tools\GetSessionContext;
 use App\Mcp\Tools\GetThread;
 use App\Mcp\Tools\InitializeProject;
+use App\Mcp\Tools\LogDecision;
 use App\Mcp\Tools\LogSessionActivity;
 use App\Mcp\Tools\ManageLabel;
 use App\Mcp\Tools\ManageSection;
@@ -31,6 +32,7 @@ class McpController extends Controller
         $payload = $request->json()->all();
         $server = new McpServer([
             new AddThreadEntry,
+            new LogDecision,
             new GetSessionContext,
             new GetOpenTasks,
             new GetProjectNotes,
