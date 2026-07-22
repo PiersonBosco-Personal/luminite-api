@@ -22,6 +22,7 @@ use App\Mcp\Tools\LogDecision;
 use App\Mcp\Tools\LogSessionActivity;
 use App\Mcp\Tools\ManageLabel;
 use App\Mcp\Tools\ManageSection;
+use App\Mcp\Tools\Recall;
 use App\Mcp\Tools\UpdateNote;
 use App\Mcp\Tools\UpdateTask;
 use Illuminate\Http\Request;
@@ -40,6 +41,7 @@ class McpController extends Controller
             new GetRecentActivity,
             new GetThread,
             new GetDecisions,
+            new Recall,
             new GetLabels,
             new GetSections,
             new ManageSection,
