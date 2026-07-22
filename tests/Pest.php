@@ -18,6 +18,15 @@ use Laravel\Sanctum\Sanctum;
 
 uses(Tests\TestCase::class, RefreshDatabase::class)->in('Feature');
 
+// Never hit a real embedding API in tests. Individual tests that need to assert
+// embed() calls override this with app()->instance(AIProvider::class, $mock).
+beforeEach(function () {
+    app()->bind(
+        \App\AI\Contracts\AIProvider::class,
+        \Tests\Support\FakeAiProvider::class,
+    );
+})->in('Feature');
+
 /*
 |--------------------------------------------------------------------------
 | Global Helper Functions
