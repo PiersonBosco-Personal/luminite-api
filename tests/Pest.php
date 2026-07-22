@@ -16,16 +16,18 @@ use Laravel\Sanctum\Sanctum;
 |
 */
 
-uses(Tests\TestCase::class, RefreshDatabase::class)->in('Feature');
-
-// Never hit a real embedding API in tests. Individual tests that need to assert
+// Never hit a real embedding API in tests. Bound here (chained onto the Feature
+// uses() so the hook actually registers — a standalone beforeEach()->in('Feature')
+// in this file silently no-ops in Pest 3). Individual tests that need to assert
 // embed() calls override this with app()->instance(AIProvider::class, $mock).
-beforeEach(function () {
-    app()->bind(
-        \App\AI\Contracts\AIProvider::class,
-        \Tests\Support\FakeAiProvider::class,
-    );
-})->in('Feature');
+uses(Tests\TestCase::class, RefreshDatabase::class)
+    ->beforeEach(function () {
+        app()->bind(
+            \App\AI\Contracts\AIProvider::class,
+            \Tests\Support\FakeAiProvider::class,
+        );
+    })
+    ->in('Feature');
 
 /*
 |--------------------------------------------------------------------------

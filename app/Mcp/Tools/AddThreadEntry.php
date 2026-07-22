@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Jobs\EmbedRecord;
 use App\Models\Task;
 use App\Models\ThreadEntry;
 use Illuminate\Http\Request;
@@ -64,7 +65,7 @@ class AddThreadEntry extends Tool
             }
         }
 
-        ThreadEntry::create([
+        $entry = ThreadEntry::create([
             'project_id' => $projectId,
             'task_id'    => $taskId,
             'created_by' => $userId,
@@ -72,6 +73,11 @@ class AddThreadEntry extends Tool
             'content'    => $content,
             'trigger'    => $trigger,
         ]);
+
+        // Only durable types are indexed for recall — momentum is resume-only (spec §7).
+        if (in_array($type, EmbedRecord::EMBEDDABLE_THREAD_TYPES, true)) {
+            EmbedRecord::dispatch('thread_entry', $entry->id);
+        }
 
         // Deliberately no ActivityLogService::log() and no broadcast (spec §3):
         // the Thread is its own channel; mcp_history records the call centrally.

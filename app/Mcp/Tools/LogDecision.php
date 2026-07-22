@@ -2,6 +2,7 @@
 
 namespace App\Mcp\Tools;
 
+use App\Jobs\EmbedRecord;
 use App\Models\Decision;
 use App\Models\Task;
 use App\Models\ThreadEntry;
@@ -102,6 +103,9 @@ class LogDecision extends Tool
         // Deliberately no ActivityLogService::log() and no broadcast (spec §4.1):
         // the decision log is its own channel; mcp_history is the audit trail.
         $note = $supersedes ? " (superseded #{$supersedes->id})" : '';
+
+        // Index the decision for semantic recall, off the critical path (spec §5.3).
+        EmbedRecord::dispatch('decision', $new->id);
 
         return "Logged decision #{$new->id}: {$decision}{$note}.";
     }
