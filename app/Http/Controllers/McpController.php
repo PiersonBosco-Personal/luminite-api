@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Mcp\McpServer;
+use App\Mcp\Prompts\HandoffPrompt;
 use App\Mcp\Prompts\InitializeProjectPrompt;
+use App\Mcp\Prompts\ResumePrompt;
 use App\Mcp\Prompts\WrapUpPrompt;
 use App\Mcp\Resources\DecisionsResource;
 use App\Mcp\Resources\ThreadResource;
@@ -58,6 +60,8 @@ class McpController extends Controller
         ], [
             new InitializeProjectPrompt,
             new WrapUpPrompt,
+            new ResumePrompt,
+            new HandoffPrompt,
         ], [
             new ThreadResource,
             new DecisionsResource,

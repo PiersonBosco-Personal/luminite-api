@@ -99,3 +99,41 @@ it('prompt methods write nothing to mcp_history', function () {
 
     expect(McpHistory::count())->toBe(0);
 });
+
+it('prompts/list includes resume and handoff', function () {
+    [$raw] = mcpToken();
+
+    $names = collect($this->withToken($raw)
+        ->postJson('/api/mcp', ['jsonrpc' => '2.0', 'method' => 'prompts/list', 'id' => 1])
+        ->json('result.prompts'))->pluck('name');
+
+    expect($names)->toContain('resume')->and($names)->toContain('handoff');
+});
+
+it('prompts/get resume tells Claude to read the thread and decisions', function () {
+    [$raw] = mcpToken();
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'prompts/get', 'id' => 2,
+            'params'  => ['name' => 'resume'],
+        ])
+        ->assertStatus(200)
+        ->json('result.messages.0.content.text');
+
+    expect($text)->toContain('get_thread')->and($text)->toContain('get_decisions');
+});
+
+it('prompts/get handoff produces a teammate snapshot', function () {
+    [$raw] = mcpToken();
+
+    $text = $this->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0', 'method' => 'prompts/get', 'id' => 3,
+            'params'  => ['name' => 'handoff'],
+        ])
+        ->assertStatus(200)
+        ->json('result.messages.0.content.text');
+
+    expect($text)->toContain('get_thread')->and($text)->toContain('get_open_tasks');
+});
