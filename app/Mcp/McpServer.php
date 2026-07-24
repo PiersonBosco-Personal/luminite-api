@@ -4,6 +4,7 @@ namespace App\Mcp;
 
 use App\Events\McpActivityCreated;
 use App\Mcp\Prompts\Prompt;
+use App\Mcp\Resources\Resource;
 use App\Mcp\Tools\Tool;
 use App\Models\McpHistory;
 use Illuminate\Http\Request;
@@ -14,10 +15,11 @@ class McpServer
     private const DEFAULT_PROTOCOL_VERSION = '2025-06-18';
 
     /**
-     * @param Tool[]   $tools
-     * @param Prompt[] $prompts
+     * @param Tool[]     $tools
+     * @param Prompt[]   $prompts
+     * @param Resource[] $resources
      */
-    public function __construct(private array $tools, private array $prompts = []) {}
+    public function __construct(private array $tools, private array $prompts = [], private array $resources = []) {}
 
     public function handle(array $payload, Request $request): array
     {
@@ -35,6 +37,8 @@ class McpServer
             'tools/call'   => $this->toolsCall($payload, $request, $id),
             'prompts/list' => $this->promptsList($id),
             'prompts/get'  => $this->promptsGet($payload, $id),
+            'resources/list' => $this->resourcesList($id),
+            'resources/read' => $this->resourcesRead($payload, $request, $id),
             default        => $this->error($id, -32601, "Method not found: {$method}"),
         };
     }
@@ -52,7 +56,7 @@ class McpServer
             'result'  => [
                 'protocolVersion' => $version,
                 'serverInfo'      => ['name' => 'luminite', 'version' => '1.0.0'],
-                'capabilities'    => ['tools' => new \stdClass(), 'prompts' => new \stdClass()],
+                'capabilities'    => ['tools' => new \stdClass(), 'prompts' => new \stdClass(), 'resources' => new \stdClass()],
                 'instructions'    => $this->instructions(),
             ],
         ];
@@ -118,6 +122,47 @@ class McpServer
             'result'  => [
                 'description' => $prompt->definition()['description'] ?? '',
                 'messages'    => $prompt->messages(),
+            ],
+        ];
+    }
+
+    private function resourcesList(mixed $id): array
+    {
+        return [
+            'jsonrpc' => '2.0',
+            'id'      => $id,
+            'result'  => [
+                'resources' => array_map(fn (Resource $r) => $r->definition(), $this->resources),
+            ],
+        ];
+    }
+
+    private function resourcesRead(array $payload, Request $request, mixed $id): array
+    {
+        $uri = $payload['params']['uri'] ?? '';
+
+        // Resources expose real project data, so require the read scope — the same
+        // gate tools/call applies. Prompts (static text) don't need this.
+        $scopes = $request->attributes->get('mcp_scopes', []);
+        if (! in_array('read', $scopes, true)) {
+            return $this->error($id, -32603, "This token lacks the 'read' scope");
+        }
+
+        $resource = collect($this->resources)->first(fn (Resource $r) => $r->definition()['uri'] === $uri);
+
+        if (! $resource) {
+            return $this->error($id, -32602, "Resource not found: {$uri}");
+        }
+
+        return [
+            'jsonrpc' => '2.0',
+            'id'      => $id,
+            'result'  => [
+                'contents' => [[
+                    'uri'      => $uri,
+                    'mimeType' => $resource->definition()['mimeType'],
+                    'text'     => $resource->read($request),
+                ]],
             ],
         ];
     }

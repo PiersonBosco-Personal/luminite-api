@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Mcp\McpServer;
 use App\Mcp\Prompts\InitializeProjectPrompt;
 use App\Mcp\Prompts\WrapUpPrompt;
+use App\Mcp\Resources\DecisionsResource;
+use App\Mcp\Resources\ThreadResource;
 use App\Mcp\Tools\AddThreadEntry;
 use App\Mcp\Tools\CompleteTask;
 use App\Mcp\Tools\CreateNote;
@@ -56,6 +58,9 @@ class McpController extends Controller
         ], [
             new InitializeProjectPrompt,
             new WrapUpPrompt,
+        ], [
+            new ThreadResource,
+            new DecisionsResource,
         ]);
 
         $response = $server->handle($payload, $request);
