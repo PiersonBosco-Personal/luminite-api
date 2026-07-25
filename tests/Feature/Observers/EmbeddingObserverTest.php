@@ -28,9 +28,13 @@ it('dispatches an embed job when a task is created directly on the model', funct
 
     $task = makeTask($project->id, $user->id);
 
+    // Undelayed: a create fires once, so there is no churn to wait out and the
+    // record should become searchable immediately.
     Queue::assertPushed(
         EmbedRecord::class,
-        fn ($job) => $job->sourceType === 'task' && $job->sourceId === $task->id
+        fn ($job) => $job->sourceType === 'task'
+            && $job->sourceId === $task->id
+            && $job->delay === null
     );
 });
 
@@ -55,7 +59,9 @@ it('dispatches when a task title actually changes', function () {
 
     $task->update(['title' => 'A genuinely different title']);
 
-    Queue::assertPushed(EmbedRecord::class);
+    // Delayed: edits arrive in bursts, so the unique lock gets a window to
+    // collapse a whole editing session into one embed call.
+    Queue::assertPushed(EmbedRecord::class, fn ($job) => $job->delay !== null);
 });
 
 it('does NOT dispatch for momentum thread entries', function () {
