@@ -91,7 +91,59 @@ it('dispatches for gotcha thread entries', function () {
         'content'    => 'Reverb needs backoff',
     ]);
 
-    Queue::assertPushed(EmbedRecord::class, fn ($job) => $job->sourceType === 'thread_entry');
+    Queue::assertPushed(
+        EmbedRecord::class,
+        fn ($job) => $job->sourceType === 'thread_entry' && $job->delay === null
+    );
+});
+
+it('delays re-indexing when a gotcha is edited', function () {
+    $user    = User::factory()->create();
+    $project = createProject($user);
+
+    $entry = ThreadEntry::factory()->create([
+        'project_id' => $project->id,
+        'created_by' => $user->id,
+        'type'       => 'gotcha',
+        'content'    => 'Reverb needs backoff',
+    ]);
+
+    Queue::fake(); // after creation — the synchronous create released the unique lock
+
+    $entry->update(['content' => 'Reverb needs exponential backoff, not linear']);
+
+    Queue::assertPushed(
+        EmbedRecord::class,
+        fn ($job) => $job->sourceType === 'thread_entry' && $job->delay !== null
+    );
+});
+
+it('indexes a new decision immediately', function () {
+    Queue::fake();
+    $user    = User::factory()->create();
+    $project = createProject($user);
+
+    Decision::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    Queue::assertPushed(
+        EmbedRecord::class,
+        fn ($job) => $job->sourceType === 'decision' && $job->delay === null
+    );
+});
+
+it('delays re-indexing when a decision is edited', function () {
+    $user     = User::factory()->create();
+    $project  = createProject($user);
+    $decision = Decision::factory()->create(['project_id' => $project->id, 'created_by' => $user->id]);
+
+    Queue::fake(); // after creation — the synchronous create released the unique lock
+
+    $decision->update(['rationale' => 'A materially different rationale']);
+
+    Queue::assertPushed(
+        EmbedRecord::class,
+        fn ($job) => $job->sourceType === 'decision' && $job->delay !== null
+    );
 });
 
 it('deletes the embedding row when its source is deleted', function () {

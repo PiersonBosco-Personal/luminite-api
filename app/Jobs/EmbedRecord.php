@@ -25,12 +25,15 @@ class EmbedRecord implements ShouldQueue, ShouldBeUnique
     /**
      * Collapse edit churn. Records are edited far more often than they settle —
      * a note autosaves every 1.5s — so only one pending job per record may exist
-     * at a time, and the observers delay dispatch by this same window. An editing
-     * session then costs one embed call instead of hundreds.
+     * at a time, and the observers delay *update* dispatches by this same window.
+     * An editing session then costs one embed call instead of hundreds.
      *
-     * The observers MUST delay by no more than this window: if the delay outlived
-     * the lock, the lock would expire before the job ran and the collapse would
-     * silently stop working. Both sides reference this constant so they cannot drift.
+     * Creates are NOT delayed: a create fires once, so there is no churn to collapse
+     * and delaying it would only leave a new record unsearchable for the window.
+     *
+     * An update delay MUST never exceed this window: if it did, the lock would expire
+     * before the job ran and the collapse would silently stop working. Both sides
+     * reference this constant so they cannot drift.
      */
     public const DEDUPE_WINDOW_SECONDS = 300;
 
