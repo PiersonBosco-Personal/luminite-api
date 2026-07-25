@@ -146,6 +146,34 @@ it('delays re-indexing when a decision is edited', function () {
     );
 });
 
+it('deletes the embedding row when a task or thread entry is deleted', function () {
+    $user    = User::factory()->create();
+    $project = createProject($user);
+
+    $task  = makeTask($project->id, $user->id);
+    $entry = ThreadEntry::factory()->create([
+        'project_id' => $project->id,
+        'created_by' => $user->id,
+        'type'       => 'gotcha',
+        'content'    => 'Reverb needs backoff',
+    ]);
+
+    foreach ([['task', $task->id], ['thread_entry', $entry->id]] as [$type, $id]) {
+        Embedding::factory()->create([
+            'project_id'   => $project->id,
+            'source_type'  => $type,
+            'source_id'    => $id,
+            'content_hash' => 'abc',
+        ]);
+    }
+
+    $task->delete();
+    $entry->delete();
+
+    expect(Embedding::where('source_type', 'task')->where('source_id', $task->id)->exists())->toBeFalse()
+        ->and(Embedding::where('source_type', 'thread_entry')->where('source_id', $entry->id)->exists())->toBeFalse();
+});
+
 it('deletes the embedding row when its source is deleted', function () {
     $user    = User::factory()->create();
     $project = createProject($user);

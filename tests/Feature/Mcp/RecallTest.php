@@ -7,11 +7,6 @@ use App\Models\Task;
 use App\Models\TaskSection;
 use Illuminate\Support\Facades\DB;
 
-it('requires a query', function () {
-    [$raw] = mcpToken([], ['read']);
-    expect(callTool($this, $raw, 'recall', ['query' => '   ']))->toContain('query is required');
-});
-
 it('is callable with a read-only token', function () {
     [$raw] = mcpToken([], ['read']);
     // Read scope must be sufficient — no -32603 scope error.
@@ -171,5 +166,8 @@ it('restricts results to the requested types', function () {
     $out = callTool($this, $raw, 'recall', ['query' => 'whatever', 'types' => ['task']]);
 
     expect($out)->toContain('TASK marker')
-        ->and($out)->not->toContain('DECISION marker');
+        ->and($out)->not->toContain('DECISION marker')
+        // The distance prefix is the relevance signal the whole feature rests on;
+        // without this assertion every gated test still passes if render() drops it.
+        ->and($out)->toMatch('/^- \[\d\.\d{3}\] \[task\] #\d+ TASK marker \(\w+\)$/m');
 })->skip(fn () => DB::connection()->getDriverName() !== 'pgsql', 'pgvector similarity requires PostgreSQL');

@@ -55,7 +55,15 @@ class EmbedRecord implements ShouldQueue, ShouldBeUnique
     public function __construct(
         public readonly string $sourceType, // 'decision' | 'thread_entry' | 'task'
         public readonly int $sourceId,
-    ) {}
+    ) {
+        // Observers fire *inside* the writing transaction, so without this a worker
+        // can pick the job up before the row is committed, `find()` returns null,
+        // and the record is silently never indexed and never retried. Every queue
+        // connection sets `after_commit => false`, so the job must opt in itself.
+        // (Set via the trait's method — declaring the property here would clash
+        // with Queueable's own untyped $afterCommit.)
+        $this->afterCommit();
+    }
 
     /**
      * The exact text that gets embedded for a record.

@@ -82,6 +82,22 @@ it('embeds a task using its title and description', function () {
     expect(Embedding::count())->toBe(0);
 });
 
+it('composes task text with no trailing newline when the description is null', function () {
+    $user    = User::factory()->create();
+    $project = createProject($user);
+    $section = TaskSection::factory()->create(['project_id' => $project->id]);
+
+    $task = Task::factory()->create([
+        'project_id'  => $project->id,
+        'section_id'  => $section->id,
+        'created_by'  => $user->id,
+        'title'       => 'Add rate limiting',
+        'description' => null,
+    ]);
+
+    expect(EmbedRecord::textFor('task', $task))->toBe('Add rate limiting');
+});
+
 it('declares ShouldBeUnique with a per-source id and a 300s dedupe window', function () {
     $job = new EmbedRecord('task', 42);
 
@@ -89,4 +105,12 @@ it('declares ShouldBeUnique with a per-source id and a 300s dedupe window', func
         ->and($job->uniqueId())->toBe('task:42')
         ->and($job->uniqueFor)->toBe(300)
         ->and(EmbedRecord::DEDUPE_WINDOW_SECONDS)->toBe(300);
+});
+
+it('defers dispatch until after the writing transaction commits', function () {
+    // Observers dispatch from inside the transaction. Without afterCommit a
+    // worker can beat the commit, find() returns null, and the record is
+    // silently never indexed. Nothing else in the suite would catch a regression
+    // here, because tests run on the sync queue where the race cannot occur.
+    expect((new EmbedRecord('task', 42))->afterCommit)->toBeTrue();
 });

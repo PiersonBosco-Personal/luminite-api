@@ -102,10 +102,20 @@ class Recall extends Tool
 
         foreach ($types as $type) {
             if ($type === 'task') {
-                $clauses[] = "e.source_type = 'task'";
+                // EXISTS, not a bare source_type match: deleting a board section
+                // DB-cascades its tasks without firing Eloquent events, so the
+                // observer never runs and the embedding row outlives its task.
+                // Without this guard those orphans consume LIMIT slots and are
+                // then dropped at render time — silently under-filling results.
+                $clauses[] = "(e.source_type = 'task' AND EXISTS (
+                    SELECT 1 FROM tasks t WHERE t.id = e.source_id
+                ))";
             } elseif ($type === 'decision') {
-                $clauses[] = "(e.source_type = 'decision' AND NOT EXISTS (
-                    SELECT 1 FROM decisions d WHERE d.id = e.source_id AND d.status = 'superseded'
+                // One EXISTS covers both concerns: the decision must still exist
+                // (same orphan case as above) and must not be superseded.
+                // `status` is NOT NULL defaulting to 'active', so `<>` is safe.
+                $clauses[] = "(e.source_type = 'decision' AND EXISTS (
+                    SELECT 1 FROM decisions d WHERE d.id = e.source_id AND d.status <> 'superseded'
                 ))";
             } elseif (in_array($type, EmbedRecord::EMBEDDABLE_THREAD_TYPES, true)) {
                 $clauses[]  = "(e.source_type = 'thread_entry' AND EXISTS (
