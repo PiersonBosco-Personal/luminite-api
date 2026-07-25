@@ -3,24 +3,13 @@
 use App\Jobs\EmbedRecord;
 use App\Models\Decision;
 use App\Models\Embedding;
+use App\Models\Task;
+use App\Models\TaskSection;
 use Illuminate\Support\Facades\DB;
-
-function recallCall($test, string $raw, array $arguments): string
-{
-    return $test->withToken($raw)
-        ->postJson('/api/mcp', [
-            'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 1,
-            'params'  => ['name' => 'recall', 'arguments' => $arguments],
-        ])
-        ->assertStatus(200)
-        ->json('result.content.0.text');
-}
 
 it('requires a query', function () {
     [$raw] = mcpToken([], ['read']);
-    expect(recallCall($this, $raw, ['query' => '   ']))->toContain('query is required');
+    expect(callTool($this, $raw, 'recall', ['query' => '   ']))->toContain('query is required');
 });
 
 it('is callable with a read-only token', function () {
@@ -38,7 +27,7 @@ it('is callable with a read-only token', function () {
 it('returns a clean message on a non-pgsql driver (no similarity query)', function () {
     [$raw] = mcpToken([], ['read']);
     expect(DB::connection()->getDriverName())->not->toBe('pgsql'); // guard: this test is about the SQLite path
-    expect(recallCall($this, $raw, ['query' => 'auth tokens']))->toContain('No indexed memory');
+    expect(callTool($this, $raw, 'recall', ['query' => 'auth tokens']))->toContain('No indexed memory');
 });
 
 // --- pgsql-gated: real similarity ranking + active-filtering (runs on CI/Postgres) ---
@@ -58,14 +47,14 @@ it('ranks the nearest embedding first and active-filters superseded decisions', 
     $mock->shouldReceive('embed')->andReturn(hotArray(0));
     app()->instance(App\AI\Contracts\AIProvider::class, $mock);
 
-    $out = recallCall($this, $raw, ['query' => 'whatever']);
+    $out = callTool($this, $raw, 'recall', ['query' => 'whatever']);
     expect($out)->toContain('NEAR match');
     // NEAR appears before FAR in the ranked output.
     expect(strpos($out, 'NEAR match'))->toBeLessThan(strpos($out, 'FAR match'));
 
     // Now supersede NEAR — it must drop out of default recall, FAR surfaces.
     $near->update(['status' => 'superseded']);
-    $out2 = recallCall($this, $raw, ['query' => 'whatever']);
+    $out2 = callTool($this, $raw, 'recall', ['query' => 'whatever']);
     expect($out2)->not->toContain('NEAR match')->and($out2)->toContain('FAR match');
 })->skip(fn () => DB::connection()->getDriverName() !== 'pgsql', 'pgvector similarity requires PostgreSQL');
 
@@ -151,3 +140,36 @@ it('excludes superseded decisions without shrinking the result set', function ()
     expect($text)->toContain('Square')
         ->and($text)->not->toContain('Stripe');
 });
+
+it('restricts results to the requested types', function () {
+    [$raw, , $project, $user] = mcpToken([], ['read']);
+
+    $decision = Decision::factory()->create([
+        'project_id' => $project->id,
+        'created_by' => $user->id,
+        'decision'   => 'DECISION marker',
+        'status'     => 'active',
+    ]);
+
+    $section = TaskSection::factory()->create(['project_id' => $project->id]);
+    $task    = Task::factory()->create([
+        'project_id' => $project->id,
+        'section_id' => $section->id,
+        'created_by' => $user->id,
+        'title'      => 'TASK marker',
+    ]);
+
+    // Identical vectors, so relevance cannot be what separates them —
+    // the types filter is the only thing that can exclude the decision.
+    insertEmbedding($project->id, 'decision', $decision->id, hotVector(0));
+    insertEmbedding($project->id, 'task', $task->id, hotVector(0));
+
+    $mock = Mockery::mock(App\AI\Contracts\AIProvider::class);
+    $mock->shouldReceive('embed')->andReturn(hotArray(0));
+    app()->instance(App\AI\Contracts\AIProvider::class, $mock);
+
+    $out = callTool($this, $raw, 'recall', ['query' => 'whatever', 'types' => ['task']]);
+
+    expect($out)->toContain('TASK marker')
+        ->and($out)->not->toContain('DECISION marker');
+})->skip(fn () => DB::connection()->getDriverName() !== 'pgsql', 'pgvector similarity requires PostgreSQL');
