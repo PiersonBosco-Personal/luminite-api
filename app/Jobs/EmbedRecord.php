@@ -9,12 +9,13 @@ use App\Models\Task;
 use App\Models\ThreadEntry;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 
-class EmbedRecord implements ShouldQueue
+class EmbedRecord implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -22,6 +23,19 @@ class EmbedRecord implements ShouldQueue
     public const EMBEDDABLE_THREAD_TYPES = ['gotcha', 'dead_end'];
 
     public int $tries = 3;
+
+    /**
+     * Collapse edit churn. Records are edited far more often than they settle —
+     * a note autosaves every 1.5s — so only one pending job per record may exist
+     * at a time. Combined with the 5-minute delayed dispatch in the observers,
+     * an editing session costs one embed call instead of hundreds.
+     */
+    public int $uniqueFor = 300;
+
+    public function uniqueId(): string
+    {
+        return "{$this->sourceType}:{$this->sourceId}";
+    }
 
     public function backoff(): array
     {
