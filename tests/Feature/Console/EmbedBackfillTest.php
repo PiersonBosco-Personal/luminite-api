@@ -58,6 +58,35 @@ it('skips rows that are already indexed with a current hash', function () {
     Queue::assertNotPushed(EmbedRecord::class);
 });
 
+it('re-queues a row whose text changed since it was indexed', function () {
+    $user    = User::factory()->create();
+    $project = createProject($user);
+
+    $decision = Decision::factory()->create([
+        'project_id' => $project->id,
+        'created_by' => $user->id,
+        'decision'   => 'Use Square',
+        'rationale'  => 'Lower fees',
+    ]);
+
+    // Indexed under the OLD text — the hash no longer matches what the record says.
+    Embedding::factory()->create([
+        'project_id'   => $project->id,
+        'source_type'  => 'decision',
+        'source_id'    => $decision->id,
+        'content_hash' => hash('sha256', "Use Stripe\nBetter known"),
+    ]);
+
+    Queue::fake();
+
+    $this->artisan('luminite:embed-backfill')->assertSuccessful();
+
+    Queue::assertPushed(
+        EmbedRecord::class,
+        fn ($job) => $job->sourceType === 'decision' && $job->sourceId === $decision->id
+    );
+});
+
 it('can be scoped to a single project', function () {
     $user  = User::factory()->create();
     $mine  = createProject($user);

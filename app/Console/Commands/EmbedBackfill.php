@@ -8,6 +8,7 @@ use App\Models\Embedding;
 use App\Models\Task;
 use App\Models\ThreadEntry;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
 
 class EmbedBackfill extends Command
 {
@@ -26,7 +27,6 @@ class EmbedBackfill extends Command
         $queued += $this->sweep(
             'decision',
             Decision::query()->when($projectId, fn ($q) => $q->where('project_id', $projectId))->get(),
-            fn (Decision $d) => $d->decision . "\n" . $d->rationale,
         );
 
         $queued += $this->sweep(
@@ -35,13 +35,11 @@ class EmbedBackfill extends Command
                 ->whereIn('type', EmbedRecord::EMBEDDABLE_THREAD_TYPES)
                 ->when($projectId, fn ($q) => $q->where('project_id', $projectId))
                 ->get(),
-            fn (ThreadEntry $e) => $e->content,
         );
 
         $queued += $this->sweep(
             'task',
             Task::query()->when($projectId, fn ($q) => $q->where('project_id', $projectId))->get(),
-            fn (Task $t) => trim($t->title . "\n" . ($t->description ?? '')),
         );
 
         $this->info("Queued {$queued} embedding job(s).");
@@ -52,8 +50,11 @@ class EmbedBackfill extends Command
     /**
      * Queue a job for every row whose current text hash differs from what is
      * indexed. Idempotent — a second run right after the first queues nothing.
+     *
+     * The text is composed by EmbedRecord::textFor(), the same method the job
+     * itself uses, so the two can never disagree about what was hashed.
      */
-    private function sweep(string $sourceType, iterable $rows, callable $text): int
+    private function sweep(string $sourceType, Collection $rows): int
     {
         $indexed = Embedding::where('source_type', $sourceType)
             ->pluck('content_hash', 'source_id');
@@ -61,7 +62,7 @@ class EmbedBackfill extends Command
         $queued = 0;
 
         foreach ($rows as $row) {
-            if (($indexed[$row->id] ?? null) === hash('sha256', $text($row))) {
+            if (($indexed[$row->id] ?? null) === hash('sha256', EmbedRecord::textFor($sourceType, $row))) {
                 continue;
             }
 

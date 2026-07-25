@@ -8,6 +8,7 @@ use App\Models\Embedding;
 use App\Models\Task;
 use App\Models\ThreadEntry;
 use Illuminate\Bus\Queueable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -56,6 +57,24 @@ class EmbedRecord implements ShouldQueue, ShouldBeUnique
         public readonly int $sourceId,
     ) {}
 
+    /**
+     * The exact text that gets embedded for a record.
+     *
+     * Deliberately the ONE place this is composed. `luminite:embed-backfill`
+     * recomputes the same text to compare content hashes, and if the two ever
+     * disagreed the backfill would re-queue every row on every run — re-billing
+     * every embed while still reporting success and passing every test. Sharing
+     * this method makes that drift impossible rather than merely unlikely.
+     */
+    public static function textFor(string $sourceType, Model $row): string
+    {
+        return match ($sourceType) {
+            'decision'     => $row->decision . "\n" . $row->rationale,
+            'thread_entry' => $row->content,
+            'task'         => trim($row->title . "\n" . ($row->description ?? '')),
+        };
+    }
+
     public function handle(): void
     {
         $row = match ($this->sourceType) {
@@ -69,11 +88,7 @@ class EmbedRecord implements ShouldQueue, ShouldBeUnique
             return; // source deleted before the job ran — nothing to index
         }
 
-        $text = match ($this->sourceType) {
-            'decision'     => $row->decision . "\n" . $row->rationale,
-            'thread_entry' => $row->content,
-            'task'         => trim($row->title . "\n" . ($row->description ?? '')),
-        };
+        $text = self::textFor($this->sourceType, $row);
 
         $hash = hash('sha256', $text);
 
