@@ -72,20 +72,12 @@ it('embeds a task using its title and description', function () {
         'description' => 'Throttle the public API to 60 requests per minute.',
     ]);
 
-    // NB: constructor property promotion cannot be by-reference in PHP, so the
-    // fake records into its own property rather than capturing an outer variable.
-    $fake = new class implements AIProvider {
-        public array $seen = [];
-
-        public function embed(string $text): array
-        {
-            $this->seen[] = $text;
-            return array_fill(0, 1536, 0.01);
-        }
-    };
-    app()->instance(AIProvider::class, $fake);
+    $mock = Mockery::mock(AIProvider::class);
+    $mock->shouldReceive('embed')->once()
+        ->with("Add rate limiting\nThrottle the public API to 60 requests per minute.")
+        ->andReturn(array_fill(0, 1536, 0.5));
+    app()->instance(AIProvider::class, $mock);
 
     (new EmbedRecord('task', $task->id))->handle();
-
-    expect($fake->seen[0])->toBe("Add rate limiting\nThrottle the public API to 60 requests per minute.");
+    expect(Embedding::count())->toBe(0);
 });
