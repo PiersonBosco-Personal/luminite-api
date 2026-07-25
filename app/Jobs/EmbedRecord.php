@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\AI\Contracts\AIProvider;
 use App\Models\Decision;
 use App\Models\Embedding;
+use App\Models\Task;
 use App\Models\ThreadEntry;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,7 +29,7 @@ class EmbedRecord implements ShouldQueue
     }
 
     public function __construct(
-        public readonly string $sourceType, // 'decision' | 'thread_entry'
+        public readonly string $sourceType, // 'decision' | 'thread_entry' | 'task'
         public readonly int $sourceId,
     ) {}
 
@@ -37,6 +38,7 @@ class EmbedRecord implements ShouldQueue
         $row = match ($this->sourceType) {
             'decision'     => Decision::find($this->sourceId),
             'thread_entry' => ThreadEntry::find($this->sourceId),
+            'task'         => Task::find($this->sourceId),
             default        => null,
         };
 
@@ -44,9 +46,11 @@ class EmbedRecord implements ShouldQueue
             return; // source deleted before the job ran — nothing to index
         }
 
-        $text = $this->sourceType === 'decision'
-            ? $row->decision . "\n" . $row->rationale
-            : $row->content;
+        $text = match ($this->sourceType) {
+            'decision'     => $row->decision . "\n" . $row->rationale,
+            'thread_entry' => $row->content,
+            'task'         => trim($row->title . "\n" . ($row->description ?? '')),
+        };
 
         $hash = hash('sha256', $text);
 
