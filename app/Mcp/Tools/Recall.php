@@ -3,6 +3,7 @@
 namespace App\Mcp\Tools;
 
 use App\AI\Contracts\AIProvider;
+use App\Jobs\EmbedRecord;
 use App\Models\Decision;
 use App\Models\Task;
 use App\Models\ThreadEntry;
@@ -106,11 +107,16 @@ class Recall extends Tool
                 $clauses[] = "(e.source_type = 'decision' AND NOT EXISTS (
                     SELECT 1 FROM decisions d WHERE d.id = e.source_id AND d.status = 'superseded'
                 ))";
-            } else { // gotcha | dead_end
+            } elseif (in_array($type, EmbedRecord::EMBEDDABLE_THREAD_TYPES, true)) {
                 $clauses[]  = "(e.source_type = 'thread_entry' AND EXISTS (
                     SELECT 1 FROM thread_entries te WHERE te.id = e.source_id AND te.type = ?
                 ))";
                 $bindings[] = $type;
+            } else {
+                // Deliberately explicit rather than a catch-all thread-entry branch:
+                // a future addition to ALL_TYPES would otherwise be silently queried
+                // against thread_entries, returning wrong rows with no error.
+                throw new \LogicException("Unmapped recall source type: {$type}");
             }
         }
 
@@ -146,7 +152,9 @@ class Recall extends Tool
                 continue; // source deleted between indexing and this read
             }
 
-            $distance = number_format((float) $row->distance, 2);
+            // 3dp, not 2: cosine distances cluster tightly, and 2dp renders
+            // genuinely different matches as the same number to the reader.
+            $distance = number_format((float) $row->distance, 3);
 
             $lines[] = match ($row->source_type) {
                 'decision'     => "- [{$distance}] [decision] #{$model->id} {$model->decision} — {$model->rationale}",
