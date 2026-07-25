@@ -22,15 +22,21 @@ class EmbedRecord implements ShouldQueue, ShouldBeUnique
     /** Thread-entry types worth embedding. Momentum is deliberately excluded (spec §7). */
     public const EMBEDDABLE_THREAD_TYPES = ['gotcha', 'dead_end'];
 
-    public int $tries = 3;
-
     /**
      * Collapse edit churn. Records are edited far more often than they settle —
      * a note autosaves every 1.5s — so only one pending job per record may exist
-     * at a time. Combined with the 5-minute delayed dispatch in the observers,
-     * an editing session costs one embed call instead of hundreds.
+     * at a time, and the observers delay dispatch by this same window. An editing
+     * session then costs one embed call instead of hundreds.
+     *
+     * The observers MUST delay by no more than this window: if the delay outlived
+     * the lock, the lock would expire before the job ran and the collapse would
+     * silently stop working. Both sides reference this constant so they cannot drift.
      */
-    public int $uniqueFor = 300;
+    public const DEDUPE_WINDOW_SECONDS = 300;
+
+    public int $tries = 3;
+
+    public int $uniqueFor = self::DEDUPE_WINDOW_SECONDS;
 
     public function uniqueId(): string
     {

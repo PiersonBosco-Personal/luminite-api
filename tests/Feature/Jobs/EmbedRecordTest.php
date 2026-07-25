@@ -82,10 +82,11 @@ it('embeds a task using its title and description', function () {
     expect(Embedding::count())->toBe(0);
 });
 
-it('is unique per source so repeated dispatches collapse into one job', function () {
+it('declares ShouldBeUnique with a per-source id and a 300s dedupe window', function () {
     $job = new EmbedRecord('task', 42);
 
     expect($job)->toBeInstanceOf(Illuminate\Contracts\Queue\ShouldBeUnique::class)
         ->and($job->uniqueId())->toBe('task:42')
-        ->and($job->uniqueFor)->toBe(300);
+        ->and($job->uniqueFor)->toBe(300)
+        ->and(EmbedRecord::DEDUPE_WINDOW_SECONDS)->toBe(300);
 });
