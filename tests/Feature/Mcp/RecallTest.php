@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\EmbedRecord;
 use App\Models\Decision;
 use App\Models\Embedding;
 use Illuminate\Support\Facades\DB;
@@ -91,3 +92,62 @@ function insertEmbedding(int $projectId, string $type, int $id, string $literal)
         'updated_at'   => now(),
     ]);
 }
+
+it('advertises a types filter in its input schema', function () {
+    $definition = (new App\Mcp\Tools\Recall)->definition();
+
+    expect($definition['inputSchema']['properties'])->toHaveKey('types')
+        ->and($definition['inputSchema']['properties']['types']['type'])->toBe('array')
+        ->and($definition['inputSchema']['properties']['types']['items']['enum'])
+        ->toBe(['decision', 'gotcha', 'dead_end', 'task'])
+        ->and($definition['inputSchema']['required'])->toBe(['query']);
+});
+
+it('rejects an unknown source type', function () {
+    [$raw] = mcpToken([], ['read']);
+
+    $text = callTool($this, $raw, 'recall', ['query' => 'anything', 'types' => ['banana']]);
+
+    expect($text)->toContain('Error: types must be any of decision, gotcha, dead_end, task.');
+});
+
+it('still requires a query', function () {
+    [$raw] = mcpToken([], ['read']);
+
+    $text = callTool($this, $raw, 'recall', ['query' => '   ']);
+
+    expect($text)->toBe('Error: query is required.');
+});
+
+it('excludes superseded decisions without shrinking the result set', function () {
+    if (DB::connection()->getDriverName() !== 'pgsql') {
+        $this->markTestSkipped('Vector ranking requires pgvector on PostgreSQL.');
+    }
+
+    [$raw, , $project, $user] = mcpToken([], ['read']);
+
+    $superseded = Decision::factory()->create([
+        'project_id' => $project->id,
+        'created_by' => $user->id,
+        'decision'   => 'Use Stripe as the payment processor',
+        'rationale'  => 'Best known brand',
+        'status'     => 'superseded',
+    ]);
+
+    $active = Decision::factory()->create([
+        'project_id' => $project->id,
+        'created_by' => $user->id,
+        'decision'   => 'Use Square as the payment processor',
+        'rationale'  => 'Lower fees at our volume',
+        'status'     => 'active',
+    ]);
+
+    foreach ([$superseded, $active] as $d) {
+        (new EmbedRecord('decision', $d->id))->handle();
+    }
+
+    $text = callTool($this, $raw, 'recall', ['query' => 'which payment vendor did we choose']);
+
+    expect($text)->toContain('Square')
+        ->and($text)->not->toContain('Stripe');
+});
