@@ -100,3 +100,20 @@ function mcpToken(array $projectOverrides = [], array $scopes = ['read']): array
     [$token, $raw] = \App\Models\McpToken::generate($user, $project, 'test-token', $scopes);
     return [$raw, $token, $project, $user];
 }
+
+/**
+ * Call an MCP tool over the real HTTP endpoint and return its text result.
+ * Returns the raw `result.content.0.text` string.
+ */
+function callTool($test, string $raw, string $name, array $arguments): string
+{
+    return $test->withToken($raw)
+        ->postJson('/api/mcp', [
+            'jsonrpc' => '2.0',
+            'method'  => 'tools/call',
+            'id'      => 1,
+            'params'  => ['name' => $name, 'arguments' => $arguments],
+        ])
+        ->assertStatus(200)
+        ->json('result.content.0.text');
+}

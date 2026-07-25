@@ -3,19 +3,6 @@
 use App\Jobs\EmbedRecord;
 use Illuminate\Support\Facades\Queue;
 
-function callTool($test, string $raw, string $name, array $arguments): string
-{
-    return $test->withToken($raw)
-        ->postJson('/api/mcp', [
-            'jsonrpc' => '2.0',
-            'method'  => 'tools/call',
-            'id'      => 1,
-            'params'  => ['name' => $name, 'arguments' => $arguments],
-        ])
-        ->assertStatus(200)
-        ->json('result.content.0.text');
-}
-
 it('dispatches an embed job when a decision is logged', function () {
     Queue::fake();
     [$raw, , $project] = mcpToken([], ['read', 'write']);
