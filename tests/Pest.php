@@ -105,7 +105,7 @@ function mcpToken(array $projectOverrides = [], array $scopes = ['read']): array
  * Call an MCP tool over the real HTTP endpoint and return its text result.
  * Returns the raw `result.content.0.text` string.
  */
-function callTool($test, string $raw, string $name, array $arguments): string
+function callTool(\Tests\TestCase $test, string $raw, string $name, array $arguments): string
 {
     return $test->withToken($raw)
         ->postJson('/api/mcp', [
