@@ -21,9 +21,8 @@ it('is callable with a read-only token', function () {
 
 it('returns a clean message on a non-pgsql driver (no similarity query)', function () {
     [$raw] = mcpToken([], ['read']);
-    expect(DB::connection()->getDriverName())->not->toBe('pgsql'); // guard: this test is about the SQLite path
     expect(callTool($this, $raw, 'recall', ['query' => 'auth tokens']))->toContain('No indexed memory');
-});
+})->skip(fn () => DB::connection()->getDriverName() === 'pgsql', 'covers the fallback taken only off pgvector');
 
 // --- pgsql-gated: real similarity ranking + active-filtering (runs on CI/Postgres) ---
 
@@ -34,6 +33,7 @@ it('ranks the nearest embedding first and active-filters superseded decisions', 
     $near = Decision::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'decision' => 'NEAR match', 'status' => 'active']);
     $far  = Decision::factory()->create(['project_id' => $project->id, 'created_by' => $user->id, 'decision' => 'FAR match', 'status' => 'active']);
 
+    clearEmbeddingIndex(); // drop the observers' rows so the hand-crafted vectors are the only ones
     insertEmbedding($project->id, 'decision', $near->id, hotVector(0));
     insertEmbedding($project->id, 'decision', $far->id, hotVector(5));
 
@@ -153,6 +153,8 @@ it('restricts results to the requested types', function () {
         'created_by' => $user->id,
         'title'      => 'TASK marker',
     ]);
+
+    clearEmbeddingIndex();
 
     // Identical vectors, so relevance cannot be what separates them —
     // the types filter is the only thing that can exclude the decision.

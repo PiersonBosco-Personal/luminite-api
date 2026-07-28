@@ -158,6 +158,8 @@ it('deletes the embedding row when a task or thread entry is deleted', function 
         'content'    => 'Reverb needs backoff',
     ]);
 
+    clearEmbeddingIndex();
+
     foreach ([['task', $task->id], ['thread_entry', $entry->id]] as [$type, $id]) {
         Embedding::factory()->create([
             'project_id'   => $project->id,
@@ -182,6 +184,8 @@ it('deletes the embedding row when its source is deleted', function () {
         'project_id' => $project->id,
         'created_by' => $user->id,
     ]);
+
+    clearEmbeddingIndex();
 
     Embedding::factory()->create([
         'project_id'   => $project->id,

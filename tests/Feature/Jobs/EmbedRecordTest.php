@@ -11,6 +11,7 @@ use App\Models\User;
 
 it('embeds a decision using "decision\nrationale" as the text', function () {
     $decision = Decision::factory()->create(['decision' => 'Use Square', 'rationale' => 'Lower fees']);
+    clearEmbeddingIndex(); // otherwise the create observer's row makes this a no-op re-embed
 
     $mock = Mockery::mock(AIProvider::class);
     $mock->shouldReceive('embed')->once()
@@ -19,23 +20,25 @@ it('embeds a decision using "decision\nrationale" as the text', function () {
     app()->instance(AIProvider::class, $mock);
 
     (new EmbedRecord('decision', $decision->id))->handle();
-    // On SQLite the vector is not persisted, but embed() must have been called with the right text.
-    expect(Embedding::count())->toBe(0);
+    // embed() must have been called with the right text; the row lands only on pgvector.
+    expect(Embedding::count())->toBe(persistsVectors() ? 1 : 0);
 });
 
 it('embeds a thread entry using its content', function () {
     $entry = ThreadEntry::factory()->create(['type' => 'gotcha', 'content' => 'Reverb needs backoff']);
+    clearEmbeddingIndex();
 
     $mock = Mockery::mock(AIProvider::class);
     $mock->shouldReceive('embed')->once()->with('Reverb needs backoff')->andReturn(array_fill(0, 1536, 0.5));
     app()->instance(AIProvider::class, $mock);
 
     (new EmbedRecord('thread_entry', $entry->id))->handle();
-    expect(Embedding::count())->toBe(0);
+    expect(Embedding::count())->toBe(persistsVectors() ? 1 : 0);
 });
 
 it('is idempotent — unchanged text is not re-embedded', function () {
     $decision = Decision::factory()->create(['decision' => 'Use Square', 'rationale' => 'Lower fees']);
+    clearEmbeddingIndex();
     // Pre-seed an index row whose hash matches the current text.
     Embedding::factory()->create([
         'source_type'  => 'decision',
@@ -71,6 +74,7 @@ it('embeds a task using its title and description', function () {
         'title'       => 'Add rate limiting',
         'description' => 'Throttle the public API to 60 requests per minute.',
     ]);
+    clearEmbeddingIndex();
 
     $mock = Mockery::mock(AIProvider::class);
     $mock->shouldReceive('embed')->once()
@@ -79,7 +83,7 @@ it('embeds a task using its title and description', function () {
     app()->instance(AIProvider::class, $mock);
 
     (new EmbedRecord('task', $task->id))->handle();
-    expect(Embedding::count())->toBe(0);
+    expect(Embedding::count())->toBe(persistsVectors() ? 1 : 0);
 });
 
 it('composes task text with no trailing newline when the description is null', function () {

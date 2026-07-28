@@ -25,6 +25,7 @@ it('queues embed jobs for un-indexed rows', function () {
         'project_id' => $project->id, 'section_id' => $section->id, 'created_by' => $user->id,
     ]);
 
+    clearEmbeddingIndex(); // the create observers already indexed these on pgvector
     Queue::fake(); // fake AFTER seeding so observer dispatches don't pollute the count
 
     $this->artisan('luminite:embed-backfill')->assertSuccessful();
@@ -43,6 +44,8 @@ it('skips rows that are already indexed with a current hash', function () {
         'decision'   => 'Use Square',
         'rationale'  => 'Lower fees',
     ]);
+
+    clearEmbeddingIndex();
 
     Embedding::factory()->create([
         'project_id'   => $project->id,
@@ -68,6 +71,8 @@ it('re-queues a row whose text changed since it was indexed', function () {
         'decision'   => 'Use Square',
         'rationale'  => 'Lower fees',
     ]);
+
+    clearEmbeddingIndex();
 
     // Indexed under the OLD text — the hash no longer matches what the record says.
     Embedding::factory()->create([
@@ -95,6 +100,7 @@ it('can be scoped to a single project', function () {
     Decision::factory()->create(['project_id' => $mine->id, 'created_by' => $user->id]);
     Decision::factory()->create(['project_id' => $other->id, 'created_by' => $user->id]);
 
+    clearEmbeddingIndex();
     Queue::fake();
 
     $this->artisan('luminite:embed-backfill', ['--project' => $mine->id])->assertSuccessful();

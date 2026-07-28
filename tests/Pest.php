@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\Embedding;
 use App\Models\Project;
 use App\Models\User;
 use Database\Seeders\WidgetSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 
 /*
@@ -99,6 +101,31 @@ function mcpToken(array $projectOverrides = [], array $scopes = ['read']): array
     $project = createProject($user, $projectOverrides);
     [$token, $raw] = \App\Models\McpToken::generate($user, $project, 'test-token', $scopes);
     return [$raw, $token, $project, $user];
+}
+
+/**
+ * Drop every embeddings row the create observers wrote while seeding.
+ *
+ * Creating a decision, task, or gotcha dispatches EmbedRecord, and tests run the
+ * sync queue — so under pgvector the record is really indexed before the test
+ * body starts. Under SQLite the job stops at its driver guard and writes nothing.
+ * Any test that seeds its own index fixture, counts rows, or asserts on an
+ * un-indexed starting state must call this after its factories, or it only holds
+ * on SQLite and breaks on Postgres.
+ */
+function clearEmbeddingIndex(): void
+{
+    Embedding::query()->delete();
+}
+
+/**
+ * Whether EmbedRecord persists the vector on this connection. The embeddings
+ * table has no vector column outside pgvector, so the job composes and embeds
+ * the text but skips the write.
+ */
+function persistsVectors(): bool
+{
+    return DB::connection()->getDriverName() === 'pgsql';
 }
 
 /**
