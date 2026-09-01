@@ -1,59 +1,100 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# luminite-api
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+The Laravel backend for **[Luminite](https://github.com/PiersonBosco-Personal/luminite-web-app)** — a
+project workspace for small development teams. Three jobs in one service:
 
-## About Laravel
+1. A **versioned REST API** under `/api/v1/` serving the React frontend.
+2. A **WebSocket server** (Laravel Reverb) broadcasting every write in real time.
+3. An **MCP server** at `POST /mcp` that gives a coding agent read/write access to the project's
+   tasks, decisions, and memory.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Fully decoupled from the frontend — no Blade views, no Inertia, no server-rendered JavaScript.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Stack
 
-## Learning Laravel
+| | |
+|---|---|
+| **Framework** | Laravel 12, PHP 8.2+ |
+| **Database** | PostgreSQL 16 |
+| **Vector search** | `pgvector` as an extension of that same database — no second connection |
+| **Real-time** | Laravel Reverb (Pusher protocol, self-hosted) |
+| **Auth** | Laravel Sanctum — long-lived bearer tokens |
+| **Queues** | Database-backed Laravel queues, drained by a dedicated worker container |
+| **AI** | Provider-agnostic `AIProvider` interface; OpenAI embeddings are one implementation |
+| **Local dev** | Docker via Laravel Sail |
+| **Tests** | Pest / PHPUnit — 102 test files, SQLite in-memory |
+| **CI/CD** | GitHub Actions, push-to-deploy |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## What's in here
 
-## Laravel Sponsors
+**24 Eloquent models** — projects, tasks, sections, notes, folders, labels, attachments, time
+entries, work types, activity logs, decisions, thread entries, embeddings, MCP tokens, and more.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+**31 broadcast events.** Every mutation — a task moved, a label renamed, a timer started, an
+invitation accepted — fires an event on one of four channels: a private project channel, a project
+presence channel, a per-note presence channel, and a private user channel.
 
-### Premium Partners
+**An audited write path.** Writes route through `ActivityLogService`, which records who changed
+what and fires an `ActivityCreated` event — that pair is what feeds the live activity stream and the
+team changelog. It debounces repeated edits to the same field by the same user inside a five-minute
+window, so renaming a task three times leaves one entry in the feed instead of three. All twelve
+writing MCP tools log through it, as do the project, task, section, label, and invitation
+controllers. Validation lives in 24 Form Request classes.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### The MCP server
 
-## Contributing
+`app/Mcp/` implements Model Context Protocol over a single `POST /mcp` endpoint — the one route
+outside the `/api/v1/` prefix, since it carries its own token middleware. It exposes **20 tools** an
+agent can call mid-session:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- **Tasks** — `create_task`, `update_task`, `complete_task`, `get_open_tasks`
+- **Memory** — `log_decision`, `add_thread_entry`, `get_thread`, `get_decisions`
+- **Notes** — `create_note`, `update_note`, `get_project_notes`
+- **Context** — `get_session_context`, `get_recent_activity`, `log_session_activity`
+- **Semantic search** — `recall`
+- **Structure** — `initialize_project`, `manage_section`, `manage_label`, `get_sections`, `get_labels`
 
-## Code of Conduct
+`recall` is the interesting one. Tasks, decisions, and the gotchas/dead-ends worth remembering are
+embedded into `pgvector` **on write**, not on a nightly batch — a decision logged seconds ago has to
+be findable immediately, or the agent's memory is useless within a single session. The
+`EmbedRecord` job collapses edit churn with a unique-job window, so a note that autosaves every
+1.5 seconds costs one embedding call instead of hundreds.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+The provider sits behind an `AIProvider` interface, so swapping embedding vendors is a container
+binding, not a refactor.
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Structure
 
-## License
+```
+app/
+├── AI/           Provider contract + implementations
+├── Events/       31 broadcast events
+├── Http/         Controllers (Api/V1), Form Requests, middleware
+├── Jobs/         Queued work — embeddings, attachment cleanup
+├── Mcp/          MCP server: Tools/, Resources/, McpServer
+├── Models/       24 Eloquent models
+└── Services/     ActivityLog, TaskCompletion, WidgetPlacement
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Running locally
+
+```bash
+composer install
+cp .env.example .env && php artisan key:generate
+./vendor/bin/sail up -d        # PostgreSQL + Reverb + queue worker
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail artisan test
+```
+
+See [TESTING.md](TESTING.md) for the test setup.
+
+---
+
+Built and maintained by **[Pierson Bosco](https://github.com/PiersonBosco-Personal)**, with a handful
+of commits from one other developer.
